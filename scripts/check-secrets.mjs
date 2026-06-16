@@ -15,6 +15,17 @@ import { fileURLToPath } from "node:url";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PLACEHOLDER = /^=?\{\{/; // ={{ $env... }} o {{ ... }}
 
+// Para `http_header_token` (regex amplio sobre cualquier "value"): exige que el
+// valor PAREZCA un token real, no un slug/identificador legítimo de n8n. Evita
+// falsos positivos como nombres de modelo ("whisper-large-v3-turbo") o
+// placeholders en mayúsculas ("SELECCIONAR_EN_DROPDOWN"), sin perder el token de
+// Chatwoot (mezcla mayús+minús+dígito) ni claves base64/largas.
+const looksLikeToken = (s) => {
+  if (/[+/=]/.test(s)) return true; // base64-ish (chars que no salen en slugs)
+  if (s.length >= 32) return true; // opaco y largo
+  return /[a-z]/.test(s) && /[A-Z]/.test(s) && /\d/.test(s); // alfanum mezclado
+};
+
 const RULES = [
   {
     id: "meta_token",
@@ -54,6 +65,7 @@ export function scanText(text) {
       if (!captured) continue;
       if (PLACEHOLDER.test(captured)) continue; // ={{ $env... }} es seguro
       if (UUID.test(captured)) continue; // ids de n8n, no secretos
+      if (rule.id === "http_header_token" && !looksLikeToken(captured)) continue; // slug/modelo, no token
       const key = rule.id + ":" + captured;
       if (seen.has(key)) continue;
       seen.add(key);

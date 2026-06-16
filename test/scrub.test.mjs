@@ -67,3 +67,18 @@ test("guard: scanText NO marca referencias de credenciales ni uuids", () => {
   const cred = '"credentials": { "postgres": { "id": "fakeCredId000", "name": "Postgres demo" } }';
   assert.equal(scanText(cred).length, 0);
 });
+
+test("guard: scanText NO marca nombres de modelo ni placeholders (header value)", () => {
+  // Falsos positivos reales de los flujos: nombre de modelo y placeholder de
+  // dropdown. Son >20 chars pero NO son tokens (slug minúscula / SCREAMING_CASE).
+  const modelo = '{ "name": "model", "value": "whisper-large-v3-turbo" }';
+  const dropdown = '{ "name": "value", "value": "SELECCIONAR_EN_DROPDOWN" }';
+  assert.equal(scanText(modelo).length, 0, "no debería marcar el nombre de modelo");
+  assert.equal(scanText(dropdown).length, 0, "no debería marcar el placeholder");
+});
+
+test("guard: scanText SÍ marca un token con mezcla mayús+minús+dígito", () => {
+  // Forma de un token de Chatwoot (mezcla de clases) -> debe seguir saltando.
+  const tok = '{ "name": "api_access_token", "value": "FAKEtoken0123456789ABCDE" }';
+  assert.ok(scanText(tok).length > 0, "debería seguir detectando el token real");
+});
