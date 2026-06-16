@@ -331,7 +331,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "consultar",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "={{ $fromAI('servicio', 'tipo de mesa segun personas: mesa para 2, mesa para 4, mesa para 6, mesa para 8. Pasa el nombre completo, nunca solo mesa') }}",
             "fecha": "={{ $fromAI('fecha', 'el dia que pide el cliente tal cual lo diga: hoy, manana, el lunes, etc') }}",
             "nombre": "={{ $('2. Parsear Meta').first().json.nombre }}",
@@ -447,7 +447,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "crear",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "={{ $fromAI('servicio', 'tipo de mesa elegido: mesa para 2, mesa para 4, mesa para 6, mesa para 8. Pasa el nombre completo, nunca solo mesa') }}",
             "fecha": "={{ $fromAI('fecha', 'el dia de la cita tal cual lo diga el cliente: hoy, manana, el lunes, etc') }}",
             "hora": "={{ $fromAI('hora', 'la hora exacta que ha elegido el cliente en formato HH:MM, por ejemplo 09:30 o 10:00') }}",
@@ -827,7 +827,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "cancelar",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'el dia de la cita que quiere cancelar el cliente: hoy, manana, el lunes, etc') }}",
             "hora": "={{ $fromAI('hora', 'la hora de la cita a cancelar en formato HH:MM si el cliente la dice, si no dejar vacio') }}",
             "nombre": "={{ $('2. Parsear Meta').first().json.nombre }}",
@@ -945,7 +945,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "crear",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "={{ $fromAI('servicio', 'tipo de mesa si aplica: mesa para 2, mesa para 4, mesa para 6, mesa para 8', 'string') }}",
             "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
             "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
@@ -1063,7 +1063,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "cancelar",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
             "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
             "confirmar": "={{ $fromAI('confirmar', 'pon si SOLO cuando el responsable ya confirmo la cancelacion', 'string') }}",
@@ -1241,7 +1241,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "actualizar",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'dia ACTUAL de la cita que quiere cambiar, tal cual lo diga: hoy, manana, el lunes, 03/06') }}",
             "hora": "={{ $fromAI('hora', 'hora ACTUAL de la cita que quiere cambiar en HH:MM, si la dice') }}",
             "nombre": "={{ $fromAI('nombre', 'nombre de la persona de la cita, si lo dice') }}",
@@ -1380,7 +1380,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "actualizar",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "=",
             "fecha": "={{ $fromAI('fecha', 'dia ACTUAL de la cita que quiere cambiar, tal cual lo diga: hoy, manana, el lunes, 03/06') }}",
             "hora": "={{ $fromAI('hora', 'hora ACTUAL de la cita que quiere cambiar en HH:MM, si la dice') }}",
@@ -1521,7 +1521,7 @@
           "value": {
             "fn": "mis_reservas",
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}"
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1653,7 +1653,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "fn": "agenda",
-            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'dia de inicio. Para UN solo dia ponlo aqui (hoy, manana, el jueves, 01/06). Para \"esta semana\" o \"los proximos dias\" pon hoy', 'string') }}",
             "fecha_hasta": "={{ $fromAI('fecha_hasta', 'dia FINAL del rango. Vacio si solo quiere un dia. Para \"esta semana\"/\"proximos dias\" pon \"en 7 dias\". Para \"del 10 al 14\" pon el 14', 'string') }}",
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
