@@ -1,0 +1,2324 @@
+{
+  "name": "CLIENTE - EMPRESARIO WHATSAPP - LA TASQUETA DEMO",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "chatwoot-tasqueta",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "07319f67-84f4-458e-88ab-de709f63a241",
+      "name": "0a. Verif GET",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        3856
+      ],
+      "webhookId": "8b8ac8ca-61b2-4859-b8b9-51d33ac06b69"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.query['hub.challenge'] }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "93bd1203-91b0-4d7a-ad13-3e7cb77a030b",
+      "name": "0b. Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        128,
+        3856
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chatwoot-tasqueta",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "19ec6452-46c3-400b-af68-14ec4bd44302",
+      "name": "1. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        3664
+      ],
+      "webhookId": "ffd95bff-0d65-45f7-971c-b786b1fde465"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "EVENT_RECEIVED",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "6accc2f2-02cb-4a17-8942-7add37a3fbf6",
+      "name": "1b. Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        128,
+        3664
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst body = root.body ?? root;\n\n// ===== Filtros: solo mensajes entrantes del cliente =====\nconst evento     = body.event ?? '';\nconst tipoMsg    = body.message_type ?? '';          // 'incoming' | 'outgoing'\nconst esPrivado  = body.private ?? false;            // notas internas\nconst estadoConv = body.conversation?.status ?? body.status ?? '';\n\n// Cortar si: no es mensaje nuevo / no es entrante / es nota privada\nif (evento !== 'message_created' || tipoMsg !== 'incoming' || esPrivado === true) {\n  return [];\n}\n\n// Cortar si la conversación NO está en 'pending' (handoff: un humano la cogió)\nif (estadoConv && estadoConv !== 'pending') {\n  return [];\n}\n\n// ===== Extraer datos (estructura Chatwoot) =====\nconst conv     = body.conversation ?? {};\nconst sender   = body.sender ?? {};\nconst convId   = conv.id ?? body.conversation_id ?? '';\nconst cuentaId = body.account?.id ?? conv.account_id ?? '';\nconst inboxId  = conv.inbox_id ?? body.inbox?.id ?? '';\n\nconst telefono = (sender.phone_number ?? '').replace('+', '');\n\n// ===== Detección de audio =====\nconst msgAnidado = body.conversation?.messages?.[0] ?? {};\nconst adjuntos = (body.attachments && body.attachments.length ? body.attachments : null)\n              ?? (msgAnidado.attachments && msgAnidado.attachments.length ? msgAnidado.attachments : null)\n              ?? [];\n\nconst audioAdj = adjuntos.find(a =>\n  a.file_type === 'audio' || a.file_type === 1 ||\n  (a.data_url && /\\.(ogg|oga|mp3|m4a|amr|wav)/i.test(a.data_url))\n) || (adjuntos.length > 0 ? adjuntos[0] : null);\n\nconst textoMsg = body.content ?? msgAnidado.content ?? '';\n\nreturn [{ json: {\n  from:             telefono,\n  message_id:       String(body.id ?? ''),\n  tipo:             audioAdj ? 'audio' : 'text',\n  texto:            textoMsg ?? '',\n  nombre:           sender.name ?? '',\n  conversation_id:  String(convId),\n  account_id:       String(cuentaId),\n  inbox_id:         String(inboxId),\n  audio_url:        audioAdj ? (audioAdj.data_url ?? '') : ''\n}}];"
+      },
+      "id": "a53c7996-7849-44a5-b03a-2d709db0862a",
+      "name": "2. Parsear Meta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        3664
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO mensajes_procesados (message_id, cliente_telefono)\nVALUES ('{{ $json.message_id }}', '{{ $json.from }}')\nON CONFLICT (message_id) DO NOTHING\nRETURNING message_id;",
+        "options": {}
+      },
+      "id": "0d411e84-239c-45a3-b4bf-189f842cd371",
+      "name": "3. Dedupe",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        816,
+        3664
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id AS negocio_id,\n  CASE WHEN dueno_telefono = '{{ $('2. Parsear Meta').first().json.from }}'\n       THEN 'empresario' ELSE 'cliente' END AS rol,\n  horario,\n  zona_horaria,\n  agente_activo,\n  dueno_telefono\nFROM negocios\nWHERE chatwoot_account_id = '{{ $('2. Parsear Meta').first().json.account_id }}'\n  AND activo = true\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "2a6b24d8-513c-4121-92f1-12ce1979f9f0",
+      "name": "4. Cargar negocio + rol",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1056,
+        3664
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-cliente",
+                    "leftValue": "={{ $json.rol }}",
+                    "rightValue": "cliente",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cliente"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "cond-empresario",
+                    "leftValue": "={{ $json.rol }}",
+                    "rightValue": "empresario",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "empresario"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "141b71ea-2eb7-456a-a2d0-fbb554471354",
+      "name": "5. Switch rol",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1504,
+        3664
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Hoy es {{ $now.setZone('Europe/Madrid').setLocale('es').toFormat('cccc') }}, {{ $now.setZone('Europe/Madrid').toISODate() }}.\nConversación previa:\n{{ $('F. Formatear historial').first().json.historial_texto }}\nMensaje actual: {{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Eres el asistente virtual de La Tasqueta, restaurante de cuina catalana de muntanya en Llívia (La Cerdanya). Atiendes a los comensales por WhatsApp y tu único trabajo es gestionar reservas de mesa: consultar disponibilidad, reservar y cancelar.\n\n# Idioma (PRIORITARIO)\nResponde SIEMPRE en el idioma en que te escribe el cliente. Si escribe en catalán, respon en català. Si escribe en francés, réponds en français (Llívia recibe mucho cliente francés). Por defecto, español.\n\n# Tono\n- De tú, cercano y profesional.\n- Mensajes BREVES, como se escribe por WhatsApp. Frases cortas.\n- Sin tecnicismos. Como mucho un emoji puntual, y solo si encaja.\n- Saluda solo en el primer mensaje. Si la conversación ya está en marcha, ve al grano.\n\n# El restaurante (lo que sabes, infórmalo si te lo piden)\n- Cocina catalana de montaña y de mercado, con buena carta de vinos. Platos de la casa: canelón, croquetas, cap i pota, tiró (pato guisado), bacallà amb cigrons.\n- Horario: viernes y sábado de 13:00 a 16:30 y de 20:00 a 23:00; domingo de 13:00 a 16:30. Lunes a jueves cerrado.\n- Dirección: Travessera dels Forns 7, Llívia.\n- NO conoces los precios de la carta. Si preguntan precios o platos concretos, di que la carta es de mercado y cambia con la temporada, y que en sala se lo cuentan encantados.\n\n# Datos OBLIGATORIOS para reservar (en este orden)\n1. NÚMERO DE PERSONAS — pregúntalo SIEMPRE lo primero si no lo ha dicho (\"¿Para cuántas personas?\").\n2. DÍA, y si quiere comer o cenar (si no está claro).\n3. HORA (de los huecos que devuelva la herramienta).\n4. NOMBRE completo — antes de crear CUALQUIER reserva (\"¿A nombre de quién hago la reserva?\"). NUNCA lo inventes. Sin nombre, no llames a la herramienta de crear.\n\n# Cómo traducir personas → mesa (CRÍTICO)\nLas reservas se hacen con un tipo de mesa según las personas. Pasa SIEMPRE el nombre completo del tipo de mesa a las herramientas:\n- 1 o 2 personas → \"Mesa para 2\"\n- 3 o 4 personas → \"Mesa para 4\"\n- 5 o 6 personas → \"Mesa para 6\"\n- 7 u 8 personas → \"Mesa para 8\"\n- MÁS de 8 personas → NO reserves por aquí: dile que para grupos grandes le atienden por teléfono en el 608 187 778.\nNunca pases \"mesa\" a secas: siempre \"Mesa para 2/4/6/8\".\n\n# Cómo usar las herramientas (CRÍTICO)\nTienes herramientas para consultar disponibilidad, crear reservas, cancelar y ver las reservas del cliente. Son tu única fuente de verdad: nunca te inventes huecos, horarios ni confirmaciones.\n- CONSULTAR: cuando sepas las personas y el día, llama SIEMPRE a la herramienta de disponibilidad ANTES de responder. Ofrece solo los huecos que devuelva.\n- RESERVAR: cuando el cliente elija una hora, llama SIEMPRE a la herramienta de crear reserva. Es la ÚNICA forma de que la mesa quede registrada.\n- PROHIBIDO confirmar sin crear: NUNCA digas \"mesa reservada\" si no has llamado a la herramienta de crear en este mismo turno y te ha devuelto la confirmación.\n- CANCELAR: solo si el cliente dice EXPLÍCITAMENTE \"cancelar\" o \"anular\". Funciona en dos pasos: buscar y confirmar.\n- SUS RESERVAS: si pregunta qué reservas tiene o cuándo era su mesa, usa la herramienta de ver sus reservas.\n- CAMBIAR una reserva: cancela la actual (con su confirmación) y crea una nueva con los datos nuevos. En ese orden.\n- DESPUÉS de usar cualquier herramienta, SIEMPRE responde con el resultado: copia el texto que devuelve. Si la confirmación menciona \"0€\" o precio, OMITE el precio (las mesas no tienen precio).\n- Si el cliente menciona alergias, trona, silla de bebé o perro, añádelo entre paréntesis al nombre de la reserva (ej. \"Marta Soler (alergia gluten)\").\n\n# Fechas (CRÍTICO)\n- Pasa la fecha LIMPIA a las herramientas: solo el día tal como lo expresa el cliente.\n- Día de la semana → pasa SOLO eso: \"sábado\" (NO \"Sábado 13/06\").\n- Fecha numérica → pasa SOLO el número: \"13/06\" o \"13\".\n- NUNCA combines nombre del día y fecha numérica. NUNCA calcules tú la fecha: la herramienta la resuelve.\n- Si el cliente menciona un MES por nombre (\"12 de septiembre\"), pásalo en formato día/mes: \"12/09\". NUNCA lo reduzcas solo al día.\n\n# Qué NO eres\n- No gestionas pedidos ni la carta por chat: solo reservas de mesa.\n- No prometes mesa concreta (terraza, ventana): puedes anotar la preferencia entre paréntesis en el nombre, sin garantizarla.\n- Ante la duda, NO derives: ayuda con normalidad.\n\n# Cómo leer cada mensaje\nEl mensaje trae primero el contexto (\"Conversación previa\") y al final el mensaje nuevo (\"Mensaje actual\"). Responde SOLO al mensaje actual, usando lo previo para no repreguntar.\n\n# Estilo de actuación\nSé resolutivo: si ya tienes personas, día, hora y nombre, actúa sin rodeos."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2368,
+        2912
+      ],
+      "id": "0f18b8a3-db07-4134-8205-67f153e47a96",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "maxTries": 3,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2400,
+        2576
+      ],
+      "id": "299c4ce3-69da-46dd-a949-41009cfb03a8",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "F3j8MYUVogGAgF2Q",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "api_access_token",
+              "value": "={{ $env.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"content\": {{ JSON.stringify($('AI Agent').first().json.output || \"Perdona, he tenido un problemilla técnico 🙏 ¿Puedes repetírmelo?\") }},\n    \"message_type\": \"outgoing\"\n  }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2816,
+        3008
+      ],
+      "id": "0fc153c6-2876-48d4-9928-d53a2d527303",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT role, mensaje\nFROM (\n  SELECT role, mensaje, id\n  FROM historial\n  WHERE negocio_id = '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}'\n    AND cliente_telefono = '{{ $('2. Parsear Meta').first().json.from }}'\n  ORDER BY id DESC\n  LIMIT 10\n) AS ultimos\nORDER BY id ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1920,
+        3216
+      ],
+      "id": "1eaed31e-655e-4a4d-8468-518cc7d3e496",
+      "name": "L. Leer historial",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// La query ya devuelve en orden cronológico (antiguo -> nuevo), NO hace falta reverse\nconst filas = $input.all().map(i => i.json);\n\nlet texto = '';\nfor (const f of filas) {\n  const quien = f.role === 'user' ? 'Paciente' : 'Asistente';\n  texto += `${quien}: ${f.mensaje}\\n`;\n}\n\nif (!texto.trim()) {\n  texto = '(no hay conversación previa, es el primer mensaje)';\n}\n\nreturn [{ json: { historial_texto: texto } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        2960
+      ],
+      "id": "5c12e7b6-b88a-47c8-9eae-ed0e3cc08faa",
+      "name": "F. Formatear historial"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO historial (negocio_id, cliente_telefono, cliente_nombre, role, mensaje)\nVALUES\n  (\n    '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}',\n    '{{ $('2. Parsear Meta').first().json.from }}',\n    '{{ $('2. Parsear Meta').first().json.nombre }}',\n    'user',\n    $msg${{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}$msg$\n  ),\n  (\n    '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}',\n    '{{ $('2. Parsear Meta').first().json.from }}',\n    '{{ $('2. Parsear Meta').first().json.nombre }}',\n    'assistant',\n    $msg${{ $('AI Agent').first().json.output }}$msg$\n  );",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3040,
+        3008
+      ],
+      "id": "4722feb9-cdb6-483e-b85a-856d2d44206b",
+      "name": "G. Guardar Historial",
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "# Reglas de oro\n- FECHAS: nunca calcules tú una fecha. Pasa lo que diga el cliente tal cual (\"hoy\", \"mañana\", \"el sábado\") a las herramientas.\n- OBLIGATORIO: cuando el cliente quiera mesa y ya sepas las personas y el día, DEBES llamar a esta herramienta de consultar disponibilidad ANTES de responder. Nunca ofrezcas horas por tu cuenta: ofrece SOLO los huecos que devuelva.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "consultar",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "servicio": "={{ $fromAI('servicio', 'tipo de mesa segun personas: mesa para 2, mesa para 4, mesa para 6, mesa para 8. Pasa el nombre completo, nunca solo mesa') }}",
+            "fecha": "={{ $fromAI('fecha', 'el dia que pide el cliente tal cual lo diga: hoy, manana, el lunes, etc') }}",
+            "nombre": "={{ $('2. Parsear Meta').first().json.nombre }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2768,
+        3408
+      ],
+      "id": "dc41d7d5-423e-4807-b0d2-de42b41e0b7f",
+      "name": "CONSULTAR"
+    },
+    {
+      "parameters": {
+        "description": "USA ESTA HERRAMIENTA SIEMPRE que el cliente confirme una hora para reservar mesa. Es OBLIGATORIA para crear la reserva. NUNCA confirmes una mesa al cliente sin haber usado esta herramienta primero. Devuelve la confirmación real de la reserva creada.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "crear",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "servicio": "={{ $fromAI('servicio', 'tipo de mesa elegido: mesa para 2, mesa para 4, mesa para 6, mesa para 8. Pasa el nombre completo, nunca solo mesa') }}",
+            "fecha": "={{ $fromAI('fecha', 'el dia de la cita tal cual lo diga el cliente: hoy, manana, el lunes, etc') }}",
+            "hora": "={{ $fromAI('hora', 'la hora exacta que ha elegido el cliente en formato HH:MM, por ejemplo 09:30 o 10:00') }}",
+            "nombre": "={{ $fromAI('nombre', 'nombre completo del cliente, tal como lo ha dicho el cliente en la conversacion', 'string') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2336,
+        3392
+      ],
+      "id": "0eacb0cb-a609-4dbe-99be-34415ad185b1",
+      "name": "CREAR"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "audio_check",
+              "leftValue": "={{ $json.tipo }}",
+              "rightValue": "audio",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "2.5. Es audio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        560,
+        3664
+      ],
+      "id": "58662f27-154d-4d87-93b1-5fa60de197dc"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v21.0/{{ $('2. Parsear Meta').first().json.audio_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "AU1. Pedir URL audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        544,
+        3168
+      ],
+      "id": "191c64d8-ce4e-404d-bdaa-ec977fa8d443",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Kkrl04z3gYro3ZcJ",
+          "name": "Header Auth account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $('2. Parsear Meta').first().json.audio_url }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "audioFile"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "name": "AU2. Descargar audio binario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        3264
+      ],
+      "id": "cd04cffe-c926-43af-a813-71becfb78cca",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "maxTries": 3,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "audioFile"
+            },
+            {
+              "name": "model",
+              "value": "whisper-large-v3-turbo"
+            },
+            {
+              "name": "response_format",
+              "value": "json"
+            },
+            {
+              "name": "language",
+              "value": "es"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "name": "AU3. Transcribir (Groq Whisper)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1136,
+        3264
+      ],
+      "id": "3da3d9da-cd99-4eb3-a596-fe28b6c3af40",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "groqApi": {
+          "id": "ueZoqixKMT4vzyQD",
+          "name": "Groq account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tomar transcripcion de Groq Whisper y reescribir el campo 'texto'\nconst original = $('2. Parsear Meta').first().json;\nlet transcripcion = '';\ntry {\n  const resp = $input.first().json;\n  transcripcion = (resp.text || '').trim();\n} catch (e) {\n  transcripcion = '';\n}\nif (!transcripcion || transcripcion.length < 2) {\n  transcripcion = '[NOTA DEL SISTEMA: el cliente ha enviado una nota de voz que no se ha podido transcribir. Discúlpate brevemente y pídele que lo repita o lo escriba.]';\n}\nreturn [{ json: { ...original, texto: transcripcion, audio_transcrito: true } }];"
+      },
+      "name": "AU4. Inyectar transcripcion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        3264
+      ],
+      "id": "cc54e2e1-e606-4388-a687-2c6ee38d6be3"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT role, mensaje\nFROM (\n  SELECT role, mensaje, id\n  FROM historial\n  WHERE negocio_id = '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}'\n    AND cliente_telefono = '{{ $('2. Parsear Meta').first().json.from }}'\n  ORDER BY id DESC\n  LIMIT 10\n) AS ultimos\nORDER BY id ASC;",
+        "options": {}
+      },
+      "name": "LE. Leer historial (emp)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2096,
+        4160
+      ],
+      "id": "9c5ab580-6aa2-4047-811e-305a41fb4a8c",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const filas = $input.all().map(i => i.json);\nlet texto = '';\nfor (const f of filas) {\n  const quien = f.role === 'user' ? 'Responsable' : 'Asistente';\n  texto += `${quien}: ${f.mensaje}\\n`;\n}\nif (!texto.trim()) {\n  texto = '(no hay conversacion previa, es el primer mensaje)';\n}\nreturn [{ json: { historial_texto: texto } }];"
+      },
+      "name": "FE. Formatear historial (emp)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        4160
+      ],
+      "id": "3552c4eb-2f8d-4719-a030-9a5275e8e11b"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Gemini Empresario",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2496,
+        3824
+      ],
+      "id": "69caca8c-2fe3-4b63-aa7b-9bea0310097c",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "F3j8MYUVogGAgF2Q",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "api_access_token",
+              "value": "={{ $env.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"content\": {{ JSON.stringify($('AI Agent Empresario').first().json.output || \"Perdona, he tenido un problemilla técnico 🙏 ¿Puedes repetírmelo?\") }},\n    \"message_type\": \"outgoing\"\n  }",
+        "options": {}
+      },
+      "name": "HTTP Request (emp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2896,
+        4176
+      ],
+      "id": "1cd873a4-2557-487c-b7f2-f4fadc61539c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO historial (negocio_id, cliente_telefono, cliente_nombre, role, mensaje)\nVALUES\n  (\n    '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}',\n    '{{ $('2. Parsear Meta').first().json.from }}',\n    '{{ $('2. Parsear Meta').first().json.nombre }}',\n    'user',\n    $msg${{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}$msg$\n  ),\n  (\n    '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}',\n    '{{ $('2. Parsear Meta').first().json.from }}',\n    '{{ $('2. Parsear Meta').first().json.nombre }}',\n    'assistant',\n    $msg${{ $('AI Agent Empresario').first().json.output }}$msg$\n  );",
+        "options": {}
+      },
+      "name": "GE. Guardar historial (emp)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3120,
+        4176
+      ],
+      "id": "5ce40b62-f119-499a-b081-81c7d5a30961",
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "=Cancela una reserva existente. Funciona en dos pasos: la PRIMERA vez llámala con confirmar vacío para buscar la reserva; te dirá si la encontró. Si te pide confirmación, pregunta al cliente si está seguro, y solo entonces vuelve a llamarla con confirmar = \"si\". Nunca canceles sin haber preguntado al cliente.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "cancelar",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "fecha": "={{ $fromAI('fecha', 'el dia de la cita que quiere cancelar el cliente: hoy, manana, el lunes, etc') }}",
+            "hora": "={{ $fromAI('hora', 'la hora de la cita a cancelar en formato HH:MM si el cliente la dice, si no dejar vacio') }}",
+            "nombre": "={{ $('2. Parsear Meta').first().json.nombre }}",
+            "confirmar": "={{ $fromAI('confirmar', 'pon \"si\" SOLO cuando el cliente ya ha confirmado que quiere cancelar; si aun no ha confirmado, dejar vacio') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2480,
+        3440
+      ],
+      "id": "90423c8f-9e32-4459-8cbf-bfdb886a6d39",
+      "name": "CANCELAR CITA"
+    },
+    {
+      "parameters": {
+        "name": "crear_reserva",
+        "description": "Crea una reserva de mesa en el sistema. Usala cuando el responsable quiera meter una reserva manualmente y tengas el tipo de mesa, dia y hora.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "crear",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "servicio": "={{ $fromAI('servicio', 'tipo de mesa si aplica: mesa para 2, mesa para 4, mesa para 6, mesa para 8', 'string') }}",
+            "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
+            "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
+            "nombre": "={{ $fromAI('nombre', 'nombre del cliente si lo dice', 'string') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "name": "EMP crear_reserva1",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [
+        2656,
+        4496
+      ],
+      "id": "051643a8-d840-4523-b72f-6e9a7ecc3c1c"
+    },
+    {
+      "parameters": {
+        "name": "cancelar_reserva",
+        "description": "{{ $fromAI('confirmar', 'Pon \"no\" si el responsable AUN no ha confirmado la cancelacion. Pon \"si\" SOLO cuando el responsable ya ha dicho que si quiere cancelar. NUNCA lo dejes vacio: siempre \"no\" o \"si\".', 'string') }}",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "cancelar",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
+            "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
+            "confirmar": "={{ $fromAI('confirmar', 'pon si SOLO cuando el responsable ya confirmo la cancelacion', 'string') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "name": "EMP cancelar_reserva1",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        4496
+      ],
+      "id": "09082f79-74ec-40bf-857a-edf95f08087f"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        2656
+      ],
+      "id": "2fee6124-484f-4eb1-83c3-d372b0dd63ba",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "ueZoqixKMT4vzyQD",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2704,
+        3648
+      ],
+      "id": "109eaab3-9d7b-4f24-9eca-53359401a8b0",
+      "name": "Groq Chat Model Empresario",
+      "credentials": {
+        "groqApi": {
+          "id": "ueZoqixKMT4vzyQD",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "==Hoy es {{ $now.setZone('Europe/Madrid').setLocale('es').toFormat('cccc') }}, {{ $now.setZone('Europe/Madrid').toISODate() }}.\nConversación previa:\n{{ $('FE. Formatear historial (emp)').first().json.historial_texto }}\n\nMensaje actual: {{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Eres el asistente interno de La Tasqueta (Llívia). Hablas por WhatsApp con Victor, el responsable del restaurante (no con un comensal). Tu trabajo es ayudarle a gestionar las reservas de mesa.\n\n# Idioma\nResponde en el idioma en que te escriba. Si escribe en catalán, respon en català.\n\n# Tono\n- De tú, directo y eficiente. Mensajes BREVES. Vas al grano.\n\n# Mesas\nEl restaurante trabaja con tipos de mesa: Mesa para 2, Mesa para 4, Mesa para 6 y Mesa para 8. Capacidad total aproximada: 45 cubiertos.\n\n# Qué puedes hacer (eres ADMIN)\n1. VER LA AGENDA: reservas de un día o de un rango (con nombre, hora y mesa).\n2. CREAR una reserva manual (mesa según personas, día y hora; nombre del comensal).\n3. CANCELAR cualquier reserva.\n4. INFORMES: datos de ocupación y facturación cuando los pida.\n\n# Informes del negocio (datos que conoces — demo)\nCuando pregunte por ocupación, facturación o resumen, responde SOLO con estos datos. NO inventes otros:\n\nOCUPACIÓN ESTE MES (cubiertos servidos por semana):\n- Semana 1: 210 cubiertos · Semana 2: 248 cubiertos · Semana 3: 232 cubiertos · Semana 4 (en curso): 96 cubiertos\n\nFACTURACIÓN ESTE MES (ticket medio 38€):\n- Semana 1: 7.980€ · Semana 2: 9.424€ · Semana 3: 8.816€ · Total mes hasta hoy: 29.868€\n\nREGLAS DE INFORMES:\n- Formato claro (negritas con *asterisco*, saltos de línea).\n- Si pide datos que NO están aquí, di que estarán en el panel completo y ofrece los que sí tienes. NUNCA inventes cifras.\n\n# Cómo usar las herramientas (CRÍTICO)\nTienes herramientas para ver agenda, crear y cancelar. Son tu única fuente de verdad.\n- VER AGENDA: llama a la herramienta con el día. Muestra TAL CUAL lo que devuelva (omite los \"0€\" si salen).\n- CREAR: con mesa (Mesa para 2/4/6/8 según personas), día y hora, llama a la herramienta de crear.\n- CANCELAR: dos pasos: primero buscar; si pide confirmación, pregunta y solo entonces confirma.\n- CAMBIAR una reserva de día u hora: cancélala (con su confirmación) y crea una nueva. En ese orden.\n- PROHIBIDO decir \"hecho\" sin haber llamado a la herramienta y recibido la confirmación.\n- FECHAS: nunca calcules tú la fecha; pasa lo que diga tal cual.\n- Si el cliente menciona un MES por nombre (\"12 de septiembre\"), pásalo en formato día/mes: \"12/09\". NUNCA lo reduzcas solo al día.\n- DESPUÉS de usar CUALQUIER herramienta, SIEMPRE escribe el resultado. NUNCA termines en silencio.\n\n- ACTIVAR/DESACTIVAR EL ASISTENTE: si te pido apagar, pausar o silenciar el asistente para los clientes, llama a la herramienta estado_agente con accion 'desactivar'. Para encenderlo, 'activar'. Para saber como esta, 'estado'. Responde siempre con el mensaje que devuelva. Importante: tu (el responsable) siempre podras hablar conmigo aunque el asistente este desactivado para los clientes.\n\n# Cómo leer cada mensaje\n\"Conversación previa\" + \"Mensaje actual\". Responde SOLO al actual.\n\n# Estilo de actuación\nResolutivo. Eres su mano derecha para la agenda."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2528,
+        4144
+      ],
+      "id": "69aaf49f-9341-4437-b0e0-d17eb17f67ac",
+      "name": "AI Agent Empresario",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2500,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "description": "Modifica/cambia una cita YA existente: moverla de día u hora, o cambiar el tipo de sesión. Identifica la cita actual por su día (y hora si se sabe) e indica a qué cambiarla.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "actualizar",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "fecha": "={{ $fromAI('fecha', 'dia ACTUAL de la cita que quiere cambiar, tal cual lo diga: hoy, manana, el lunes, 03/06') }}",
+            "hora": "={{ $fromAI('hora', 'hora ACTUAL de la cita que quiere cambiar en HH:MM, si la dice') }}",
+            "nombre": "={{ $fromAI('nombre', 'nombre de la persona de la cita, si lo dice') }}",
+            "confirmar": "={{ $fromAI('confirmar', 'pon si SOLO cuando el usuario ya ha confirmado el cambio; si no, dejalo vacio') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
+            "fecha_nueva": "={{ $fromAI('fecha_nueva', 'NUEVA fecha a la que mover la cita, tal cual lo diga: el jueves, 12/06. Vacio si no cambia de dia') }}",
+            "hora_nueva": "={{ $fromAI('hora_nueva', 'NUEVA hora en HH:MM a la que mover la cita. Vacio si no cambia de hora') }}",
+            "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2608,
+        3392
+      ],
+      "id": "e523b912-126a-41d3-9d3b-51757e970972",
+      "name": "MODIFICAR"
+    },
+    {
+      "parameters": {
+        "description": "Modifica/cambia una cita existente del negocio: moverla de día u hora o cambiar el servicio. El dueño puede cambiar cualquier cita. Identifica la cita actual por día (y hora) e indica a qué cambiarla.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "actualizar",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "servicio": "=",
+            "fecha": "={{ $fromAI('fecha', 'dia ACTUAL de la cita que quiere cambiar, tal cual lo diga: hoy, manana, el lunes, 03/06') }}",
+            "hora": "={{ $fromAI('hora', 'hora ACTUAL de la cita que quiere cambiar en HH:MM, si la dice') }}",
+            "nombre": "={{ $fromAI('nombre', 'nombre de la persona de la cita, si lo dice') }}",
+            "confirmar": "={{ $fromAI('confirmar', 'pon si SOLO cuando el usuario ya ha confirmado el cambio; si no, dejalo vacio') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
+            "fecha_nueva": "={{ $fromAI('fecha_nueva', 'NUEVA fecha a la que mover la cita, tal cual lo diga: el jueves, 12/06. Vacio si no cambia de dia') }}",
+            "hora_nueva": "={{ $fromAI('hora_nueva', 'NUEVA hora en HH:MM a la que mover la cita. Vacio si no cambia de hora') }}",
+            "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2848,
+        4496
+      ],
+      "id": "2a030a37-0460-43a4-b492-4c4a4a3fe0da",
+      "name": "EMP modificar_reserva1"
+    },
+    {
+      "parameters": {
+        "description": "Muestra al cliente SUS próximas reservas (las que tiene a su nombre/teléfono). Úsala cuando pregunte qué reservas tiene, cuándo era su mesa, o cuando no sepa cuál quiere cancelar.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "mis_reservas",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2976,
+        3392
+      ],
+      "id": "6543c6cd-1eae-4302-b34d-7e9d0010a507",
+      "name": "MIS_RESERVAS"
+    },
+    {
+      "parameters": {
+        "name": "ver_agenda",
+        "description": "Muestra las reservas del restaurante de un dia concreto O de un rango de dias (con nombre, hora y mesa). Usala cuando el responsable pregunte que tiene un dia, su agenda, cuantas mesas hay, o por un rango como 'esta semana' o 'los proximos dias'.",
+        "workflowId": {
+          "__rl": true,
+          "value": "nzjWscGj9DoXKIzG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "agenda",
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "fecha": "={{ $fromAI('fecha', 'dia de inicio. Para UN solo dia ponlo aqui (hoy, manana, el jueves, 01/06). Para \"esta semana\" o \"los proximos dias\" pon hoy', 'string') }}",
+            "fecha_hasta": "={{ $fromAI('fecha_hasta', 'dia FINAL del rango. Vacio si solo quiere un dia. Para \"esta semana\"/\"proximos dias\" pon \"en 7 dias\". Para \"del 10 al 14\" pon el 14', 'string') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "name": "EMP ver_agenda1",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        4512
+      ],
+      "id": "98d5e1a7-667e-43c5-974a-edb1acbe9e81"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6b407e3d-b2c8-42c4-9276-9aa190f3bb6b",
+              "leftValue": "={{ $json.rol === 'empresario' || $json.agente_activo === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1264,
+        3664
+      ],
+      "id": "9e30f236-c2fe-4a20-978e-d212b0a0d84b",
+      "name": "4.5 ¿Bot activo?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/toggle_status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "api_access_token",
+              "value": "={{ $env.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"status\": \"open\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1488,
+        3840
+      ],
+      "id": "dcfad188-6e35-47b9-bf01-43e744fb89f1",
+      "name": "Pasar a Chatwoot (bot off)"
+    },
+    {
+      "parameters": {
+        "description": "Activa, desactiva o consulta el estado del asistente automatico que responde a los clientes. Usa accion='desactivar' para apagarlo (los clientes dejan de recibir respuestas automaticas), accion='activar' para encenderlo, accion='estado' para saber como esta.",
+        "workflowId": {
+          "__rl": true,
+          "value": "SELECCIONAR_EN_DROPDOWN",
+          "mode": "list",
+          "cachedResultName": "TOOL_AGENTE_ONOFF"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "negocio_id": "8d0ce837-82a2-4d0f-bf55-95d581d7d680",
+            "accion": "={{ $fromAI('accion', \"'activar' para encender el asistente, 'desactivar' para apagarlo, 'estado' para consultar como esta\", 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        3184,
+        4512
+      ],
+      "id": "9d078deb-ced4-449a-990d-e721b519876f",
+      "name": "EMP estado_agente"
+    }
+  ],
+  "pinData": {
+    "2. Parsear Meta": [
+      {
+        "json": {
+          "from": "34600000001",
+          "message_id": "test-verif-001",
+          "tipo": "text",
+          "texto": "hola",
+          "nombre": "Cliente Prueba",
+          "conversation_id": "1",
+          "account_id": "7",
+          "inbox_id": "1",
+          "audio_url": ""
+        }
+      }
+    ]
+  },
+  "connections": {
+    "0a. Verif GET": {
+      "main": [
+        [
+          {
+            "node": "0b. Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Webhook": {
+      "main": [
+        [
+          {
+            "node": "1b. Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1b. Respond 200": {
+      "main": [
+        [
+          {
+            "node": "2. Parsear Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Parsear Meta": {
+      "main": [
+        [
+          {
+            "node": "2.5. Es audio?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Dedupe": {
+      "main": [
+        [
+          {
+            "node": "4. Cargar negocio + rol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Cargar negocio + rol": {
+      "main": [
+        [
+          {
+            "node": "4.5 ¿Bot activo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Switch rol": {
+      "main": [
+        [
+          {
+            "node": "L. Leer historial",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LE. Leer historial (emp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L. Leer historial": {
+      "main": [
+        [
+          {
+            "node": "F. Formatear historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "F. Formatear historial": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "G. Guardar Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONSULTAR": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CREAR": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2.5. Es audio?": {
+      "main": [
+        [
+          {
+            "node": "AU2. Descargar audio binario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3. Dedupe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AU2. Descargar audio binario": {
+      "main": [
+        [
+          {
+            "node": "AU3. Transcribir (Groq Whisper)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AU3. Transcribir (Groq Whisper)": {
+      "main": [
+        [
+          {
+            "node": "AU4. Inyectar transcripcion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AU4. Inyectar transcripcion": {
+      "main": [
+        [
+          {
+            "node": "3. Dedupe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LE. Leer historial (emp)": {
+      "main": [
+        [
+          {
+            "node": "FE. Formatear historial (emp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FE. Formatear historial (emp)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (emp)": {
+      "main": [
+        [
+          {
+            "node": "GE. Guardar historial (emp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Empresario": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CANCELAR CITA": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EMP crear_reserva1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EMP cancelar_reserva1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model Empresario": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "AI Agent Empresario": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (emp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MIS_RESERVAS": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EMP ver_agenda1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4.5 ¿Bot activo?": {
+      "main": [
+        [
+          {
+            "node": "5. Switch rol",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pasar a Chatwoot (bot off)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MODIFICAR": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EMP modificar_reserva1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EMP estado_agente": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "aaaOcDDJ3wrrPHaj",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1261fc07-b657-4854-86f1-c555a2d6e685",
+  "meta": {
+    "instanceId": "0c633d92281d3e60391559b2314488b80dd3e4438762e47aaa5a33925c00f2e0"
+  },
+  "id": "ppzCDEhDT3kb8Acp",
+  "tags": [
+    {
+      "updatedAt": "2026-06-01T13:26:10.737Z",
+      "createdAt": "2026-06-01T13:26:10.737Z",
+      "id": "8GxTKbjXJBKlaMOQ",
+      "name": "RESERVAS"
+    },
+    {
+      "updatedAt": "2026-06-12T00:07:31.152Z",
+      "createdAt": "2026-06-12T00:07:31.152Z",
+      "id": "YX6cg4Nie85VyFP1",
+      "name": "MULTIRESERVA"
+    }
+  ]
+}

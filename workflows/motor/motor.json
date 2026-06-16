@@ -1,0 +1,649 @@
+{
+  "name": "TOOLS MOTOR DE RESERVAS",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "fn"
+            },
+            {
+              "name": "negocio_id"
+            },
+            {
+              "name": "servicio"
+            },
+            {
+              "name": "fecha"
+            },
+            {
+              "name": "hora"
+            },
+            {
+              "name": "nombre"
+            },
+            {
+              "name": "confirmar"
+            },
+            {
+              "name": "from_number"
+            },
+            {
+              "name": "fecha_nueva"
+            },
+            {
+              "name": "hora_nueva"
+            },
+            {
+              "name": "servicio_nuevo"
+            },
+            {
+              "name": "fecha_hasta"
+            }
+          ]
+        }
+      },
+      "id": "288d3be4-a310-4e84-8574-2769869ca6ff",
+      "name": "Trigger (desde agente)",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -944,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n// ===== Resolver fecha de forma determinista (mismo motor que voz) =====\nfunction resolverFecha(input) {\n  if (!input) return '';\n let s = String(input).trim().toLowerCase();\n  const numLetra = {una:1,uno:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10};\n  for (const [pal, n] of Object.entries(numLetra)) {\n    s = s.replace(new RegExp('\\\\b' + pal + '\\\\b', 'g'), String(n));\n  }\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\n  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());\n  const fmt = (x) => {\n    const y = x.getFullYear();\n    const m = String(x.getMonth() + 1).padStart(2, '0');\n    const dd = String(x.getDate()).padStart(2, '0');\n    return `${y}-${m}-${dd}`;\n  };\n  let m = s.match(/\\b(\\d{1,2})[\\/\\-](\\d{1,2})(?:[\\/\\-](\\d{2,4}))?\\b/);\n  if (m) {\n    const dd = parseInt(m[1], 10);\n    const mm = parseInt(m[2], 10);\n    let yyyy = m[3] ? parseInt(m[3], 10) : hoy.getFullYear();\n    if (yyyy < 100) yyyy += 2000;\n    let cand = new Date(yyyy, mm - 1, dd);\n    if (!m[3] && cand < hoy) cand = new Date(yyyy + 1, mm - 1, dd);\n    if (!isNaN(cand)) return fmt(cand);\n  }\n  if (s.includes('hoy')) return fmt(hoy);\n  if (s.includes('pasado manana') || s.includes('pasado mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 2); return fmt(x);\n  }\n  if (s.includes('manana') || s.includes('mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 1); return fmt(x);\n  }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*d[ií]as?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10)); return fmt(x); }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*semanas?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10) * 7); return fmt(x); }\n  if (s.includes('semana que viene') || s.includes('proxima semana') || s.includes('próxima semana') || s.includes('semana proxima') || s.includes('semana próxima')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 7); return fmt(x);\n  }\n  const dias = {'domingo':0,'lunes':1,'martes':2,'miercoles':3,'miércoles':3,'jueves':4,'viernes':5,'sabado':6,'sábado':6};\n  for (const [nombre, num] of Object.entries(dias)) {\n    if (s.includes(nombre)) {\n      const x = new Date(hoy);\n      let diff = (num - x.getDay() + 7) % 7;\n      if (diff === 0) diff = 7;\n      x.setDate(x.getDate() + diff);\n      return fmt(x);\n    }\n  }\n\n  // ===== NUEVO: numero de dia del mes suelto: \"12\", \"el 12\", \"el dia 20\", \"el 12 de este mes\" =====\n  m = s.match(/\\b(\\d{1,2})\\b/);\n  if (m) {\n    const dia = parseInt(m[1], 10);\n    if (dia >= 1 && dia <= 31) {\n      let cand = new Date(hoy.getFullYear(), hoy.getMonth(), dia);\n      if (cand < hoy) cand = new Date(hoy.getFullYear(), hoy.getMonth() + 1, dia);\n      if (!isNaN(cand) && cand.getDate() === dia) return fmt(cand);\n    }\n  }\n\n  return '';\n}\nconst fechaResuelta = resolverFecha(d.fecha);\nconst fechaNuevaResuelta = resolverFecha(d.fecha_nueva);\nconst fechaHastaResuelta = resolverFecha(d.fecha_hasta);\nreturn [{ json: {\n  fn:          d.fn ?? '',\n  negocio_id:  d.negocio_id ?? '11111111-1111-1111-1111-111111111111',\n  servicio:    d.servicio ?? '',\n  fecha:       fechaResuelta,\n  fecha_original: d.fecha ?? '',\n  hora:        d.hora ?? '',\n  nombre:      d.nombre ?? 'cliente',\n  confirmar:   d.confirmar ?? '',\n  from_number: d.from_number ?? '',\n  fecha_nueva:          fechaNuevaResuelta,\n  fecha_nueva_original: d.fecha_nueva ?? '',\n  hora_nueva:           d.hora_nueva ?? '',\n  servicio_nuevo:       d.servicio_nuevo ?? '',\n  fecha_hasta:          fechaHastaResuelta,\n  fecha_hasta_original: d.fecha_hasta ?? ''\n}}];"
+      },
+      "id": "99247fd3-4ceb-4ad3-a093-4ac875944fdd",
+      "name": "1. Resolver fecha",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c-consultar",
+                    "leftValue": "={{ $json.fn }}",
+                    "rightValue": "consultar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "consultar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c-crear",
+                    "leftValue": "={{ $json.fn }}",
+                    "rightValue": "crear",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "crear"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c-cancelar",
+                    "leftValue": "={{ $json.fn }}",
+                    "rightValue": "cancelar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancelar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "46e4a401-d9e3-4f57-b891-47695f42cc2e",
+                    "leftValue": "={{ $json.fn }}",
+                    "rightValue": "agenda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "agenda "
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "c3a8525c-f4cf-425e-82dd-637736c241f7",
+                    "leftValue": "={{ $json.fn }}",
+                    "rightValue": "actualizar",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "actualizar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "739cef61-d892-4de1-9183-6c2b153fc12c",
+                    "leftValue": "={{ $json.fn }}",
+                    "rightValue": "mis_reservas",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mis_reservas"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "406b0963-5143-4e04-9ae4-55b9650d52d6",
+      "name": "2. Router fn",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -464,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  s.nombre AS servicio_nombre,\n  s.duracion_minutos AS duracion,\n  n.horario AS horario_negocio,\n  COALESCE(\n    (SELECT json_agg(json_build_object(\n        'ini', to_char(r.hora_inicio,'HH24:MI'),\n        'fin', to_char(r.hora_fin,'HH24:MI')))\n     FROM reservas r\n     WHERE r.negocio_id = '{{ $json.negocio_id }}'\n       AND r.fecha = NULLIF('{{ $json.fecha }}','')::date\n       AND r.estado IN ('confirmado','pendiente_confirmacion_cliente')),\n    '[]'::json\n  ) AS ocupadas\nFROM negocios n\nLEFT JOIN servicios s\n  ON s.negocio_id = n.id AND s.activo = true\n  AND unaccent(s.nombre) ILIKE unaccent('%{{ $json.servicio }}%')\nWHERE n.id = '{{ $json.negocio_id }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "817842be-9250-4826-a328-4ec818d95059",
+      "name": "3a. Cargar datos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -192,
+        144
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nif (!d.servicio_nombre) {\n  return [{ json: { response: 'NO_SERVICIO: No tenemos ese servicio. ¿Quiere otra cosa?' } }];\n}\nconst fechaStr = $('1. Resolver fecha').first().json.fecha;\nif (!fechaStr) {\n  return [{ json: { response: 'Necesito saber para qué día. ¿Qué día le viene bien?' } }];\n}\n\n// ===== CAPACIDAD POR NEGOCIO (reservas simultáneas; quien no esté aquí = 1, comportamiento de siempre) =====\nconst CAPACIDAD = {\n  '8d0ce837-82a2-4d0f-bf55-95d581d7d680': 10,   // La Tasqueta · mesas simultáneas << EDITAR si Quique da otra cifra >>\n};\n// ===== NEGOCIOS CON FRANJAS DE RESTAURANTE (mediodía/noche, corte 18h) =====\nconst RESTAURANTE = new Set([\n  '8d0ce837-82a2-4d0f-bf55-95d581d7d680',       // La Tasqueta\n]);\nconst negocioId = $('1. Resolver fecha').first().json.negocio_id || '';\nconst cap = CAPACIDAD[negocioId] ?? 1;\nconst esRestaurante = RESTAURANTE.has(negocioId);\n\nconst fecha = new Date(fechaStr + 'T00:00:00');\nconst diasMap = ['dom','lun','mar','mie','jue','vie','sab'];\nconst diaKey = diasMap[fecha.getDay()];\nconst nombresDia = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];\nconst horario = typeof d.horario_negocio === 'string' ? JSON.parse(d.horario_negocio) : (d.horario_negocio || {});\nconst tramoDia = horario[diaKey];\nif (!tramoDia || tramoDia === 'cerrado') {\n  for (let i = 1; i <= 7; i++) {\n    const f2 = new Date(fecha); f2.setDate(f2.getDate() + i);\n    const k = diasMap[f2.getDay()];\n    if (horario[k] && horario[k] !== 'cerrado') {\n      return [{ json: { response: 'CERRADO: Ese día está cerrado. El siguiente día que abrimos es el ' + nombresDia[f2.getDay()] + '. ¿Quiere que mire ese día?' } }];\n    }\n  }\n  return [{ json: { response: 'CERRADO: Ese día está cerrado.' } }];\n}\n// Duración del servicio pedido\nconst dur = d.duracion || 30;\n// Citas ocupadas como INTERVALOS en minutos (ini y fin)\nconst toMin = (s) => { const [h,m] = s.slice(0,5).split(':').map(Number); return h*60 + m; };\nconst ocupadas = (d.ocupadas || []).map(o => ({ ini: toMin(o.ini), fin: toMin(o.fin) }));\n// ===== NUEVO: si piden HOY, descartar horas ya pasadas =====\nconst ahoraTZ = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\nconst hoyStr = ahoraTZ.getFullYear() + '-' + String(ahoraTZ.getMonth()+1).padStart(2,'0') + '-' + String(ahoraTZ.getDate()).padStart(2,'0');\nconst esHoy = (fechaStr === hoyStr);\nconst minAhora = ahoraTZ.getHours() * 60 + ahoraTZ.getMinutes();\n// Generar slots: un slot cae SOLO cuando las reservas que solapan alcanzan la capacidad\nconst slots = [];\nfor (const tramo of tramoDia.split(',')) {\n  const [ini, fin] = tramo.split('-').map(Number);\n  for (let m = ini * 60; m + dur <= fin * 60; m += 30) {\n    if (esHoy && m <= minAhora) continue;   // hora ya pasada hoy\n    const slotFin = m + dur;\n    const solapan = ocupadas.filter(o => m < o.fin && slotFin > o.ini).length;\n    if (solapan < cap) {\n      const hh = String(Math.floor(m / 60)).padStart(2, '0');\n      const mm = String(m % 60).padStart(2, '0');\n      slots.push(`${hh}:${mm}`);\n    }\n  }\n}\nif (slots.length === 0) {\n  const msg = esRestaurante\n    ? 'SIN_HUECOS: No quedan mesas libres ese día. ¿Quiere que mire otro día?'\n    : 'SIN_HUECOS: No quedan huecos libres ese día. ¿Quiere que mire otro día?';\n  return [{ json: { response: msg } }];\n}\n// Agrupar en franjas: restaurante = mediodía/noche (corte 18h) · resto = mañana/tarde (corte 14h)\nconst corte  = esRestaurante ? 18 : 14;\nconst lblA   = esRestaurante ? '*Mediodía:*' : '*Por la mañana:*';\nconst lblB   = esRestaurante ? '*Por la noche:*' : '*Por la tarde:*';\nconst grupoA = slots.filter(s => parseInt(s.slice(0,2),10) < corte);\nconst grupoB = slots.filter(s => parseInt(s.slice(0,2),10) >= corte);\nconst fmt = (arr) => arr.map(s => s + 'h').join(', ');\nlet partes = [];\nif (grupoA.length) partes.push(lblA + ' ' + fmt(grupoA));\nif (grupoB.length) partes.push(lblB + ' ' + fmt(grupoB));\nconst intro = esRestaurante\n  ? 'Para una ' + String(d.servicio_nombre).toLowerCase() + ' el ' + nombresDia[fecha.getDay()] + ' tengo:'\n  : 'Para ' + d.servicio_nombre + ' el ' + nombresDia[fecha.getDay()] + ' tengo estos huecos:';\nconst cierre = esRestaurante ? '¿A qué hora les va bien?' : '¿Cuál prefieres?';\nconst texto = intro + '\\n\\n' + partes.join('\\n') + '\\n\\n' + cierre;\nreturn [{ json: { response: texto } }];"
+      },
+      "id": "bc168609-303b-4f81-b07b-19f3a24eca76",
+      "name": "3a-2. Calcular huecos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH es_dueno AS (\n  -- GATE de actor: la agenda es SOLO para el responsable (dueño) del negocio.\n  -- Un cliente NUNCA debe ver la agenda completa (nombres/horas de terceros).\n  SELECT (dueno_telefono = '{{ $json.from_number }}') AS si\n  FROM negocios WHERE id = '{{ $json.negocio_id }}'\n),\nparams AS (\n  SELECT\n    COALESCE(NULLIF('{{ $json.fecha }}','')::date, (now() AT TIME ZONE 'Europe/Madrid')::date) AS desde,\n    COALESCE(NULLIF('{{ $json.fecha_hasta }}','')::date,\n             NULLIF('{{ $json.fecha }}','')::date,\n             (now() AT TIME ZONE 'Europe/Madrid')::date) AS hasta\n),\ncitas AS (\n  SELECT r.fecha, r.hora_inicio, r.servicios_resumen, r.cliente_nombre\n  FROM reservas r, params p\n  WHERE r.negocio_id = '{{ $json.negocio_id }}'\n    AND (SELECT si FROM es_dueno) = true   -- sin ser dueño no se lee ninguna fila\n    AND r.estado IN ('confirmado','pendiente_confirmacion_cliente')\n    AND r.fecha BETWEEN LEAST(p.desde,p.hasta) AND GREATEST(p.desde,p.hasta)\n),\npor_dia AS (\n  SELECT\n    fecha,\n    '*' || (CASE EXTRACT(DOW FROM fecha)::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END) || ' ' || to_char(fecha,'DD/MM') || '*'\n    || E'\\n' ||\n    string_agg(\n      '  ' || to_char(hora_inicio,'HH24:MI') || 'h · ' || servicios_resumen || ' — ' || COALESCE(NULLIF(cliente_nombre,''),'sin nombre'),\n      E'\\n' ORDER BY hora_inicio\n    ) AS bloque\n  FROM citas\n  GROUP BY fecha\n)\nSELECT\n  CASE\n    WHEN (SELECT si FROM es_dueno) IS NOT TRUE THEN\n      'NO_AUTORIZADO: solo el responsable del negocio puede ver la agenda.'\n    ELSE COALESCE(\n      (SELECT '🗓️ *Agenda*' || E'\\n\\n' || string_agg(bloque, E'\\n\\n' ORDER BY fecha) FROM por_dia),\n      'No hay citas en esas fechas.'\n    )\n  END AS response;",
+        "options": {}
+      },
+      "id": "3c7ebcc1-1984-4331-a8ef-8d54dbbc6239",
+      "name": "3d. Consultar agenda",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -192,
+        720
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH svc AS (\n  SELECT nombre, duracion_minutos, precio, profesional\n  FROM servicios\n  WHERE negocio_id = '{{ $json.negocio_id }}' AND activo = true\n    AND unaccent(nombre) ILIKE unaccent('%{{ $json.servicio }}%')\n  LIMIT 1\n),\ncalc AS (\n  SELECT\n    NULLIF('{{ $json.fecha }}','')::date AS f_fecha,\n    NULLIF('{{ $json.hora }}','')::time  AS f_hora_inicio,\n    (NULLIF('{{ $json.hora }}','')::time + (svc.duracion_minutos || ' minutes')::interval) AS f_hora_fin,\n    svc.nombre, svc.duracion_minutos, svc.precio, svc.profesional\n  FROM svc\n),\nsolape AS (\n  SELECT 1\n  FROM calc c\n  WHERE (\n    SELECT COUNT(*)\n    FROM reservas r\n    WHERE r.negocio_id = '{{ $json.negocio_id }}'\n      AND r.estado = 'confirmado'\n      AND r.fecha = c.f_fecha\n      AND r.hora_inicio < c.f_hora_fin\n      AND r.hora_fin   > c.f_hora_inicio\n  ) >= CASE\n         WHEN '{{ $json.negocio_id }}' = '8d0ce837-82a2-4d0f-bf55-95d581d7d680' THEN 10  -- La Tasqueta · mesas << EDITAR junto con 3a-2 >>\n         ELSE 1                                                                          -- resto: recurso único, como siempre\n       END\n),\nins AS (\n  INSERT INTO reservas\n    (negocio_id, cliente_telefono, cliente_nombre, servicios_resumen,\n     duracion_minutos, precio_total, fecha, hora_inicio, hora_fin, profesional, estado)\n  SELECT\n  '{{ $json.negocio_id }}',\n  NULLIF(CASE WHEN '{{ $json.from_number }}' = (SELECT dueno_telefono FROM negocios WHERE id = '{{ $json.negocio_id }}') THEN '' ELSE '{{ $json.from_number }}' END, ''),\n  '{{ $json.nombre }}', c.nombre,\n    c.duracion_minutos, c.precio, c.f_fecha, c.f_hora_inicio, c.f_hora_fin,\n    c.profesional, 'confirmado'\n  FROM calc c\n  WHERE NOT EXISTS (SELECT 1 FROM solape)\n    AND c.f_hora_inicio IS NOT NULL\n    AND (c.f_fecha + c.f_hora_inicio) > (now() AT TIME ZONE 'Europe/Madrid')   -- NUEVO: rechaza horas ya pasadas\n    AND NULLIF(TRIM('{{ $json.nombre }}'),'') IS NOT NULL\n    AND LOWER(TRIM('{{ $json.nombre }}')) <> 'cliente'\n  RETURNING cliente_nombre, servicios_resumen, fecha, hora_inicio, profesional, precio_total\n),\nneg AS (\n  SELECT dueno_telefono, phone_number_id FROM negocios WHERE id = '{{ $json.negocio_id }}'\n)\nSELECT\n  CASE\n    WHEN EXISTS (SELECT 1 FROM ins) THEN\n      '*Cita confirmada* ✅' || E'\\n\\n' ||\n      '*' || (SELECT servicios_resumen FROM ins) || '*' || E'\\n' ||\n      (CASE EXTRACT(DOW FROM (SELECT fecha FROM ins))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n      || ' ' || to_char((SELECT fecha FROM ins),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM ins),'HH24:MI') || 'h' ||\n      COALESCE(E'\\n' || (SELECT profesional FROM ins),'') ||\n      COALESCE(E'\\n' || (SELECT precio_total FROM ins)::numeric(10,0)::text || '€','') || E'\\n\\n' ||\n      'Te esperamos. Si necesitas cambiarla, escríbenos por aquí.'\n    WHEN (SELECT (c.f_fecha + c.f_hora_inicio) <= (now() AT TIME ZONE 'Europe/Madrid') FROM calc c) THEN\n      'HORA_PASADA: Esa hora ya ha pasado. Ofrécele otro día o una hora futura.'   -- NUEVO\n    WHEN EXISTS (SELECT 1 FROM solape) THEN\n      'OCUPADO: Esa franja ya está cogida. Ofrece otra hora distinta.'\n    WHEN NULLIF(TRIM('{{ $json.nombre }}'),'') IS NULL OR LOWER(TRIM('{{ $json.nombre }}')) = 'cliente' THEN\n      'FALTA_NOMBRE: Antes de crear la cita necesitas el nombre completo de la persona. Pregúntaselo y no crees nada todavía.'\n    ELSE\n      'ERROR: No he podido crear la cita. Revisa el servicio o la hora.'\n  END AS response,\n  neg.dueno_telefono,\n  neg.phone_number_id,\n  CASE WHEN EXISTS (SELECT 1 FROM ins) THEN\n    '🟢 *Nueva reserva*' || E'\\n\\n' ||\n    (SELECT servicios_resumen FROM ins) || E'\\n' ||\n    (CASE EXTRACT(DOW FROM (SELECT fecha FROM ins))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n    || ' ' || to_char((SELECT fecha FROM ins),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM ins),'HH24:MI') || 'h' ||\n    COALESCE(E'\\nPaciente: ' || NULLIF((SELECT cliente_nombre FROM ins),''),'')\n  ELSE '' END AS notif_text,\n  CASE WHEN EXISTS (SELECT 1 FROM ins) AND '{{ $json.from_number }}' <> neg.dueno_telefono THEN 'si' ELSE 'no' END AS should_notify\nFROM neg;",
+        "options": {}
+      },
+      "id": "8fc37bac-cdb0-4764-a74f-3d07d0edcff7",
+      "name": "3b. Crear reserva",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -192,
+        336
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH es_dueno AS (\n  SELECT (dueno_telefono = '{{ $json.from_number }}') AS si\n  FROM negocios WHERE id = '{{ $json.negocio_id }}'\n),\nencontradas AS (\n  SELECT id, servicios_resumen, fecha, hora_inicio\n  FROM reservas\n  WHERE negocio_id = '{{ $json.negocio_id }}'\n    AND estado IN ('confirmado','pendiente_confirmacion_cliente')\n    AND fecha = NULLIF('{{ $json.fecha }}','')::date\n    AND ('{{ $json.hora }}' = '' OR hora_inicio = NULLIF('{{ $json.hora }}','')::time)\n    -- Si es el dueño: puede cancelar cualquier cita. Si es cliente: solo las suyas (por su teléfono).\n    AND ( (SELECT si FROM es_dueno) = true OR cliente_telefono = '{{ $json.from_number }}' )\n    -- Filtro extra por nombre SOLO si el dueño da un nombre concreto (para desambiguar entre pacientes)\n    AND ( (SELECT si FROM es_dueno) = false OR '{{ $json.nombre }}' = '' OR '{{ $json.nombre }}' = 'cliente' OR unaccent(cliente_nombre) ILIKE unaccent('%{{ $json.nombre }}%') )\n),\ncancelada AS (\n  UPDATE reservas SET estado = 'cancelado'\n  WHERE id = (SELECT id FROM encontradas LIMIT 1)\n    AND '{{ $json.confirmar }}' = 'si'\n    AND (SELECT count(*) FROM encontradas) = 1\n  RETURNING servicios_resumen, fecha, hora_inicio\n),\nneg AS (\n  SELECT dueno_telefono, phone_number_id FROM negocios WHERE id = '{{ $json.negocio_id }}'\n)\nSELECT\n  CASE\n    WHEN EXISTS (SELECT 1 FROM cancelada) THEN\n      '*Cita cancelada*' || E'\\n\\n' ||\n      '*' || (SELECT servicios_resumen FROM cancelada) || '*' || E'\\n' ||\n      (CASE EXTRACT(DOW FROM (SELECT fecha FROM cancelada))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END) || ' ' || to_char((SELECT fecha FROM cancelada),'DD/MM') || ' · ' ||\n      to_char((SELECT hora_inicio FROM cancelada),'HH24:MI') || 'h' || E'\\n\\n' ||\n      'Queda anulada. Si quieres, puedes reservar otra cuando te vaya bien.'\n    WHEN (SELECT count(*) FROM encontradas) = 0 THEN\n      'NO_ENCONTRADA: No encuentro ninguna cita para ese día.'\n    WHEN (SELECT count(*) FROM encontradas) > 1 THEN\n      'VARIAS: Hay ' || (SELECT count(*) FROM encontradas)::text || ' citas ese día: ' ||\n      (SELECT string_agg(to_char(hora_inicio,'HH24:MI') || ' (' || servicios_resumen || ')', ', ') FROM encontradas) ||\n      '. Pregunta cuál quiere cancelar (por hora o servicio).'\n    ELSE\n      'CONFIRMAR: Encontrada cita de ' || (SELECT servicios_resumen FROM encontradas LIMIT 1) ||\n      ' el ' || to_char((SELECT fecha FROM encontradas LIMIT 1),'DD/MM') ||\n      ' a las ' || to_char((SELECT hora_inicio FROM encontradas LIMIT 1),'HH24:MI') ||\n      '. Pide confirmación al usuario antes de cancelar.'\n  END AS response,\n  neg.dueno_telefono,\n  neg.phone_number_id,\n  CASE WHEN EXISTS (SELECT 1 FROM cancelada) THEN\n    '🔴 *Cita cancelada*' || E'\\n\\n' ||\n    (SELECT servicios_resumen FROM cancelada) || E'\\n' ||\n    (CASE EXTRACT(DOW FROM (SELECT fecha FROM cancelada))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END) || ' ' || to_char((SELECT fecha FROM cancelada),'DD/MM') || ' · ' ||\n    to_char((SELECT hora_inicio FROM cancelada),'HH24:MI') || 'h'\n  ELSE '' END AS notif_text,\n  CASE WHEN EXISTS (SELECT 1 FROM cancelada) AND '{{ $json.from_number }}' <> neg.dueno_telefono\n       THEN 'si' ELSE 'no' END AS should_notify\nFROM neg;",
+        "options": {}
+      },
+      "id": "c1b96a8e-0975-425b-8685-b0fc638f65f2",
+      "name": "3c. Cancelar reserva",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -192,
+        512
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "244b42c7-d8c1-4d3b-92bf-d7b0f1a9a6c1",
+              "leftValue": "={{ $json.should_notify }}",
+              "rightValue": "si",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        48,
+        384
+      ],
+      "id": "8fcb0496-5b34-448d-aee6-3ed3bfbe8cca",
+      "name": "Aviso empresario ?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phone_number_id }}/messages\n",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n     \"messaging_product\": \"whatsapp\",\n     \"recipient_type\": \"individual\",\n     \"to\": \"{{ $json.dueno_telefono }}\",\n     \"type\": \"text\",\n     \"text\": { \"preview_url\": false, \"body\": {{ JSON.stringify($json.notif_text) }} }\n   }",
+        "options": {}
+      },
+      "name": "N2 avisar empresario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        240
+      ],
+      "id": "339ebdcb-a206-414c-ac9c-d747c758cb61",
+      "retryOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Kkrl04z3gYro3ZcJ",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "04443011-f498-48fb-9f24-a3a4563777f5",
+              "name": "response",
+              "value": "={{ $('3b. Crear reserva').isExecuted ? $('3b. Crear reserva').item.json.response : ($('3c. Cancelar reserva').isExecuted ? $('3c. Cancelar reserva').item.json.response : $('3e.Actualizar').item.json.response) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        528,
+        368
+      ],
+      "id": "b13bc9b8-6f98-404e-8d4b-c556a5bdde89",
+      "name": "N3 Salida"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH\nes_dueno AS (\n  SELECT (dueno_telefono = '{{ $json.from_number }}') AS si\n  FROM negocios WHERE id = '{{ $json.negocio_id }}'\n),\nencontradas AS (\n  SELECT id, cliente_telefono, cliente_nombre, servicios_resumen,\n         duracion_minutos, precio_total, fecha, hora_inicio, hora_fin, profesional\n  FROM reservas\n  WHERE negocio_id = '{{ $json.negocio_id }}'\n    AND estado IN ('confirmado','pendiente_confirmacion_cliente')\n    AND fecha = NULLIF('{{ $json.fecha }}','')::date\n    AND ('{{ $json.hora }}' = '' OR hora_inicio = NULLIF('{{ $json.hora }}','')::time)\n    AND ( (SELECT si FROM es_dueno) = true OR cliente_telefono = '{{ $json.from_number }}' )\n    AND ( (SELECT si FROM es_dueno) = false OR '{{ $json.nombre }}' = '' OR '{{ $json.nombre }}' = 'cliente' OR unaccent(cliente_nombre) ILIKE unaccent('%{{ $json.nombre }}%') )\n),\norig AS ( SELECT * FROM encontradas LIMIT 1 ),\nsvc_nuevo AS (\n  SELECT nombre, duracion_minutos, precio\n  FROM servicios\n  WHERE negocio_id = '{{ $json.negocio_id }}' AND activo = true\n    AND NULLIF('{{ $json.servicio_nuevo }}','') IS NOT NULL\n    AND unaccent(nombre) ILIKE unaccent('%{{ $json.servicio_nuevo }}%')\n  LIMIT 1\n),\ndestino AS (\n  SELECT\n    o.id,\n    COALESCE(NULLIF('{{ $json.fecha_nueva }}','')::date, o.fecha)          AS f_fecha,\n    COALESCE(NULLIF('{{ $json.hora_nueva }}','')::time, o.hora_inicio)     AS f_hora_inicio,\n    COALESCE((SELECT duracion_minutos FROM svc_nuevo), o.duracion_minutos) AS f_dur,\n    COALESCE((SELECT nombre FROM svc_nuevo), o.servicios_resumen)          AS f_servicio,\n    COALESCE((SELECT precio FROM svc_nuevo), o.precio_total)               AS f_precio\n  FROM orig o\n),\ndestino2 AS (\n  SELECT id, f_fecha, f_hora_inicio,\n         (f_hora_inicio + (f_dur || ' minutes')::interval) AS f_hora_fin,\n         f_dur, f_servicio, f_precio\n  FROM destino\n),\nsolape AS (\n  SELECT 1 FROM reservas r, destino2 d\n  WHERE r.negocio_id = '{{ $json.negocio_id }}'\n    AND r.estado = 'confirmado'\n    AND r.id <> d.id\n    AND r.fecha = d.f_fecha\n    AND r.hora_inicio < d.f_hora_fin\n    AND r.hora_fin   > d.f_hora_inicio\n  LIMIT 1\n),\nmovida AS (\n  UPDATE reservas r\n  SET fecha = d.f_fecha,\n      hora_inicio = d.f_hora_inicio,\n      hora_fin = d.f_hora_fin,\n      duracion_minutos = d.f_dur,\n      servicios_resumen = d.f_servicio,\n      precio_total = d.f_precio\n  FROM destino2 d\n  WHERE r.id = d.id\n    AND '{{ $json.confirmar }}' = 'si'\n    AND (SELECT count(*) FROM encontradas) = 1\n    AND NOT EXISTS (SELECT 1 FROM solape)\n  RETURNING r.servicios_resumen, r.fecha, r.hora_inicio\n),\nneg AS ( SELECT dueno_telefono, phone_number_id FROM negocios WHERE id = '{{ $json.negocio_id }}' )\nSELECT\n  CASE\n    WHEN EXISTS (SELECT 1 FROM movida) THEN\n      '*Cita modificada* ✅' || E'\\n\\n' ||\n      '*' || (SELECT servicios_resumen FROM movida) || '*' || E'\\n' ||\n      (CASE EXTRACT(DOW FROM (SELECT fecha FROM movida))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n      || ' ' || to_char((SELECT fecha FROM movida),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM movida),'HH24:MI') || 'h' || E'\\n\\n' ||\n      'Queda actualizada. Te esperamos.'\n    WHEN (SELECT count(*) FROM encontradas) = 0 THEN\n      'NO_ENCONTRADA: No encuentro ninguna cita con esos datos. Pregunta el día (y la hora) de la cita que quiere cambiar.'\n    WHEN (SELECT count(*) FROM encontradas) > 1 THEN\n      'VARIAS: Hay ' || (SELECT count(*) FROM encontradas)::text || ' citas ese día: ' ||\n      (SELECT string_agg(to_char(hora_inicio,'HH24:MI') || ' (' || servicios_resumen || ')', ', ') FROM encontradas) ||\n      '. Pregunta cuál quiere cambiar (por hora o servicio).'\n    WHEN NULLIF('{{ $json.fecha_nueva }}','') IS NULL\n         AND NULLIF('{{ $json.hora_nueva }}','') IS NULL\n         AND NULLIF('{{ $json.servicio_nuevo }}','') IS NULL THEN\n      'FALTA_DESTINO: Encontré la cita pero no sé a qué cambiarla. Pregunta la nueva fecha, la nueva hora o el nuevo servicio.'\n    WHEN EXISTS (SELECT 1 FROM solape) THEN\n      'OCUPADO: La nueva franja ya está cogida. Ofrece otra hora distinta.'\n    ELSE\n      'CONFIRMAR: Vas a mover la cita de ' || (SELECT servicios_resumen FROM orig) ||\n      ' del ' || to_char((SELECT fecha FROM orig),'DD/MM') || ' a las ' || to_char((SELECT hora_inicio FROM orig),'HH24:MI') ||\n      '  ->  ' || to_char((SELECT f_fecha FROM destino2),'DD/MM') || ' a las ' || to_char((SELECT f_hora_inicio FROM destino2),'HH24:MI') ||\n      ' (' || (SELECT f_servicio FROM destino2) || '). Pide confirmación al usuario antes de aplicar el cambio.'\n  END AS response,\n  neg.dueno_telefono,\n  neg.phone_number_id,\n  CASE WHEN EXISTS (SELECT 1 FROM movida) THEN\n    '🟡 *Cita modificada*' || E'\\n\\n' ||\n    (SELECT servicios_resumen FROM movida) || E'\\n' ||\n    (CASE EXTRACT(DOW FROM (SELECT fecha FROM movida))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n    || ' ' || to_char((SELECT fecha FROM movida),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM movida),'HH24:MI') || 'h'\n  ELSE '' END AS notif_text,\n  CASE WHEN EXISTS (SELECT 1 FROM movida) AND '{{ $json.from_number }}' <> neg.dueno_telefono THEN 'si' ELSE 'no' END AS should_notify\nFROM neg;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -176,
+        928
+      ],
+      "id": "eabe7900-cdb8-4006-af79-d35f9c2de2c5",
+      "name": "3e.Actualizar",
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH mis AS (\n  SELECT fecha, hora_inicio, servicios_resumen, precio_total\n  FROM reservas\n  WHERE negocio_id = '{{ $json.negocio_id }}'\n    AND cliente_telefono = '{{ $json.from_number }}'\n    AND estado = 'confirmado'\n    AND fecha >= (now() AT TIME ZONE 'Europe/Madrid')::date\n  ORDER BY fecha ASC, hora_inicio ASC\n)\nSELECT COALESCE(\n  CASE\n    WHEN COUNT(*) = 0 THEN\n      'No tienes ninguna cita reservada ahora mismo. ¿Quieres reservar una?'\n    ELSE\n      '🗓️ *Tus próximas citas*' || E'\\n\\n' ||\n      string_agg(\n        '*' ||\n        (CASE EXTRACT(DOW FROM fecha)::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n        || ' ' || to_char(fecha,'DD/MM') || ' · ' || to_char(hora_inicio,'HH24:MI') || 'h*' ||\n        ' — ' || servicios_resumen ||\n        COALESCE(' · ' || precio_total::numeric(10,0)::text || '€',''),\n        E'\\n' ORDER BY fecha, hora_inicio\n      )\n  END,\n  'No tienes ninguna cita reservada ahora mismo.'\n) AS response\nFROM mis;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -176,
+        1104
+      ],
+      "id": "1d980ac2-2cb3-471d-8968-3bb64d187b8d",
+      "name": "3f.MisReservas",
+      "credentials": {
+        "postgres": {
+          "id": "EKUTqGfh0PExfgFw",
+          "name": "Postgres mims_app"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Trigger (desde agente)": [
+      {
+        "json": {
+          "fn": "cancelar",
+          "negocio_id": "11111111-1111-1111-1111-111111111111",
+          "servicio": "",
+          "fecha": "2026-06-03",
+          "hora": "16:00",
+          "nombre": "Test Cliente",
+          "confirmar": "si",
+          "from_number": "34699999999"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Trigger (desde agente)": {
+      "main": [
+        [
+          {
+            "node": "1. Resolver fecha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Resolver fecha": {
+      "main": [
+        [
+          {
+            "node": "2. Router fn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Router fn": {
+      "main": [
+        [
+          {
+            "node": "3a. Cargar datos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3b. Crear reserva",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3c. Cancelar reserva",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3d. Consultar agenda",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3e.Actualizar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3f.MisReservas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3a. Cargar datos": {
+      "main": [
+        [
+          {
+            "node": "3a-2. Calcular huecos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3b. Crear reserva": {
+      "main": [
+        [
+          {
+            "node": "Aviso empresario ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3c. Cancelar reserva": {
+      "main": [
+        [
+          {
+            "node": "Aviso empresario ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso empresario ?": {
+      "main": [
+        [
+          {
+            "node": "N2 avisar empresario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "N3 Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "N2 avisar empresario": {
+      "main": [
+        [
+          {
+            "node": "N3 Salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3e.Actualizar": {
+      "main": [
+        [
+          {
+            "node": "Aviso empresario ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "799091c7-7903-4b56-be5f-42984fc576f8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0c633d92281d3e60391559b2314488b80dd3e4438762e47aaa5a33925c00f2e0"
+  },
+  "id": "nzjWscGj9DoXKIzG",
+  "tags": [
+    {
+      "updatedAt": "2026-06-01T13:26:10.737Z",
+      "createdAt": "2026-06-01T13:26:10.737Z",
+      "id": "8GxTKbjXJBKlaMOQ",
+      "name": "RESERVAS"
+    },
+    {
+      "updatedAt": "2026-06-03T13:29:55.189Z",
+      "createdAt": "2026-06-03T13:29:32.343Z",
+      "id": "Gve7pVUsmXhh6iyw",
+      "name": "MonoReservas"
+    }
+  ]
+}
