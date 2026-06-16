@@ -1,0 +1,16 @@
+# Dependencias / basura
+node_modules/
+reports/
+.DS_Store
+*.log
+
+# Secretos — NUNCA al repo
+.env
+.env.*
+!.env.example
+**/secrets/
+*.local.json
+
+# Exports CRUDOS de n8n (con secretos): se pasan por `npm run scrub` y se
+# commitea SOLO el JSON limpio. El crudo nunca se versiona.
+*.raw.json

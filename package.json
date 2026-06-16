@@ -1,0 +1,16 @@
+{
+  "name": "mims-workflows",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fuente de verdad (Git) de los workflows n8n de mims. JSON LIMPIOS, sin secretos. El repo manda, n8n recibe.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "scrub": "node scripts/scrub.mjs",
+    "check-secrets": "node scripts/check-secrets.mjs --staged",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "test": "node --test"
+  }
+}

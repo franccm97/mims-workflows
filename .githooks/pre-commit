@@ -1,0 +1,4 @@
+#!/bin/sh
+# Guard anti-secretos: bloquea el commit si hay un token en los archivos staged.
+# Activar una vez:  git config core.hooksPath .githooks   (o: npm run hooks:install)
+node scripts/check-secrets.mjs --staged

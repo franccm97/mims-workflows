@@ -1,0 +1,44 @@
+{
+  "name": "EJEMPLO (FALSO, solo para test del scrub)",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://inbox.example.test/api/v1/accounts/1/conversations/2/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "api_access_token", "value": "FAKE_TOKEN_PARA_TEST" }
+          ]
+        }
+      },
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "id": "11111111-1111-1111-1111-111111111111"
+    },
+    {
+      "parameters": { "operation": "executeQuery", "query": "SELECT 1;" },
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "id": "22222222-2222-2222-2222-222222222222",
+      "credentials": {
+        "postgres": { "id": "fakeCredId000", "name": "Postgres demo" }
+      }
+    },
+    {
+      "parameters": {
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api_access_token", "value": "={{ $env.CHATWOOT_API_TOKEN }}" }
+          ]
+        }
+      },
+      "name": "HTTP Request (ya limpio)",
+      "type": "n8n-nodes-base.httpRequest",
+      "id": "33333333-3333-3333-3333-333333333333"
+    }
+  ],
+  "connections": {}
+}
