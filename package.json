@@ -10,6 +10,7 @@
   "scripts": {
     "scrub": "node scripts/scrub.mjs",
     "check-secrets": "node scripts/check-secrets.mjs --staged",
+    "check-secrets:all": "node scripts/check-secrets.mjs --all",
     "hooks:install": "git config core.hooksPath .githooks",
     "deploy": "node scripts/deploy.mjs",
     "test": "node --test"
