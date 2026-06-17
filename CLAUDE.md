@@ -36,12 +36,16 @@ scripts/     scrub.mjs (limpia secretos) · check-secrets.mjs (guard)
 ```bash
 npm run scrub -- <archivo.json>   # limpia un export de n8n
 npm run hooks:install             # activa el guard de pre-commit
-npm test                          # tests del scrub + guard
+npm run deploy                    # dry-run deploy GitHub->n8n; --live aplica
+npm test                          # tests del scrub + guard + deploy
 ```
 
-## Qué es 2-B (todavía NO está aquí)
+## 2-B: deploy GitHub → n8n (ya presente)
 
-Hacer los JSON limpios DESPLEGABLES: poner las env vars (`CHATWOOT_API_TOKEN`...)
-en la instancia de n8n + un script de deploy GitHub→n8n. Un JSON con
-`={{ $env.CHATWOOT_API_TOKEN }}` NO funciona re-importado hasta que esa env var
-exista en n8n. Este repo (2-A) es solo la fuente de verdad versionada y limpia.
+[`scripts/deploy.mjs`](scripts/deploy.mjs) empuja los JSON limpios a n8n vía su REST
+API (PUT por id, dry-run por defecto). La env var `CHATWOOT_API_TOKEN` se pone en la
+INSTANCIA de n8n (Hetzner), no en el repo. Guía: [docs/deploy-2b.md](docs/deploy-2b.md).
+
+**Sigue vigente la regla 4:** este repo no ejecuta el deploy contra producción por
+ti. El script existe; correr `--live` contra Hetzner lo hace una persona, no el
+asistente.
