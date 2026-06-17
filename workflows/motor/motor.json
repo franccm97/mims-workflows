@@ -44,7 +44,7 @@
           ]
         }
       },
-      "id": "288d3be4-a310-4e84-8574-2769869ca6ff",
+      "id": "9da34183-716e-46da-b9e3-228b869aeec7",
       "name": "Trigger (desde agente)",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
@@ -55,9 +55,9 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n// ===== Resolver fecha de forma determinista (mismo motor que voz) =====\nfunction resolverFecha(input) {\n  if (!input) return '';\n let s = String(input).trim().toLowerCase();\n  const numLetra = {una:1,uno:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10};\n  for (const [pal, n] of Object.entries(numLetra)) {\n    s = s.replace(new RegExp('\\\\b' + pal + '\\\\b', 'g'), String(n));\n  }\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\n  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());\n  const fmt = (x) => {\n    const y = x.getFullYear();\n    const m = String(x.getMonth() + 1).padStart(2, '0');\n    const dd = String(x.getDate()).padStart(2, '0');\n    return `${y}-${m}-${dd}`;\n  };\n  let m = s.match(/\\b(\\d{1,2})[\\/\\-](\\d{1,2})(?:[\\/\\-](\\d{2,4}))?\\b/);\n  if (m) {\n    const dd = parseInt(m[1], 10);\n    const mm = parseInt(m[2], 10);\n    let yyyy = m[3] ? parseInt(m[3], 10) : hoy.getFullYear();\n    if (yyyy < 100) yyyy += 2000;\n    let cand = new Date(yyyy, mm - 1, dd);\n    if (!m[3] && cand < hoy) cand = new Date(yyyy + 1, mm - 1, dd);\n    if (!isNaN(cand)) return fmt(cand);\n  }\n  if (s.includes('hoy')) return fmt(hoy);\n  if (s.includes('pasado manana') || s.includes('pasado mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 2); return fmt(x);\n  }\n  if (s.includes('manana') || s.includes('mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 1); return fmt(x);\n  }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*d[ií]as?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10)); return fmt(x); }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*semanas?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10) * 7); return fmt(x); }\n  if (s.includes('semana que viene') || s.includes('proxima semana') || s.includes('próxima semana') || s.includes('semana proxima') || s.includes('semana próxima')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 7); return fmt(x);\n  }\n  const dias = {'domingo':0,'lunes':1,'martes':2,'miercoles':3,'miércoles':3,'jueves':4,'viernes':5,'sabado':6,'sábado':6};\n  for (const [nombre, num] of Object.entries(dias)) {\n    if (s.includes(nombre)) {\n      const x = new Date(hoy);\n      let diff = (num - x.getDay() + 7) % 7;\n      if (diff === 0) diff = 7;\n      x.setDate(x.getDate() + diff);\n      return fmt(x);\n    }\n  }\n\n  // ===== NUEVO: numero de dia del mes suelto: \"12\", \"el 12\", \"el dia 20\", \"el 12 de este mes\" =====\n  m = s.match(/\\b(\\d{1,2})\\b/);\n  if (m) {\n    const dia = parseInt(m[1], 10);\n    if (dia >= 1 && dia <= 31) {\n      let cand = new Date(hoy.getFullYear(), hoy.getMonth(), dia);\n      if (cand < hoy) cand = new Date(hoy.getFullYear(), hoy.getMonth() + 1, dia);\n      if (!isNaN(cand) && cand.getDate() === dia) return fmt(cand);\n    }\n  }\n\n  return '';\n}\nconst fechaResuelta = resolverFecha(d.fecha);\nconst fechaNuevaResuelta = resolverFecha(d.fecha_nueva);\nconst fechaHastaResuelta = resolverFecha(d.fecha_hasta);\nreturn [{ json: {\n  fn:          d.fn ?? '',\n  negocio_id:  d.negocio_id ?? '11111111-1111-1111-1111-111111111111',\n  servicio:    d.servicio ?? '',\n  fecha:       fechaResuelta,\n  fecha_original: d.fecha ?? '',\n  hora:        d.hora ?? '',\n  nombre:      d.nombre ?? 'cliente',\n  confirmar:   d.confirmar ?? '',\n  from_number: d.from_number ?? '',\n  fecha_nueva:          fechaNuevaResuelta,\n  fecha_nueva_original: d.fecha_nueva ?? '',\n  hora_nueva:           d.hora_nueva ?? '',\n  servicio_nuevo:       d.servicio_nuevo ?? '',\n  fecha_hasta:          fechaHastaResuelta,\n  fecha_hasta_original: d.fecha_hasta ?? ''\n}}];"
+        "jsCode": "const d = $input.first().json;\n// ===== Resolver fecha de forma determinista (mismo motor que voz) =====\nfunction resolverFecha(input) {\n  if (!input) return '';\n let s = String(input).trim().toLowerCase();\n  const numLetra = {una:1,uno:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10};\n  for (const [pal, n] of Object.entries(numLetra)) {\n    s = s.replace(new RegExp('\\\\b' + pal + '\\\\b', 'g'), String(n));\n  }\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\n  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());\n  const fmt = (x) => {\n    const y = x.getFullYear();\n    const m = String(x.getMonth() + 1).padStart(2, '0');\n    const dd = String(x.getDate()).padStart(2, '0');\n    return `${y}-${m}-${dd}`;\n  };\n  let m = s.match(/\\b(\\d{1,2})[\\/\\-](\\d{1,2})(?:[\\/\\-](\\d{2,4}))?\\b/);\n  if (m) {\n    const dd = parseInt(m[1], 10);\n    const mm = parseInt(m[2], 10);\n    let yyyy = m[3] ? parseInt(m[3], 10) : hoy.getFullYear();\n    if (yyyy < 100) yyyy += 2000;\n    let cand = new Date(yyyy, mm - 1, dd);\n    if (!m[3] && cand < hoy) cand = new Date(yyyy + 1, mm - 1, dd);\n    if (!isNaN(cand)) return fmt(cand);\n  }\n  if (s.includes('hoy')) return fmt(hoy);\n  if (s.includes('pasado manana') || s.includes('pasado mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 2); return fmt(x);\n  }\n  if (s.includes('manana') || s.includes('mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 1); return fmt(x);\n  }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*d[ií]as?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10)); return fmt(x); }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*semanas?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10) * 7); return fmt(x); }\n  if (s.includes('semana que viene') || s.includes('proxima semana') || s.includes('próxima semana') || s.includes('semana proxima') || s.includes('semana próxima')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 7); return fmt(x);\n  }\n  const dias = {'domingo':0,'lunes':1,'martes':2,'miercoles':3,'miércoles':3,'jueves':4,'viernes':5,'sabado':6,'sábado':6};\n  for (const [nombre, num] of Object.entries(dias)) {\n    if (s.includes(nombre)) {\n      const x = new Date(hoy);\n      let diff = (num - x.getDay() + 7) % 7;\n      if (diff === 0) diff = 7;\n      x.setDate(x.getDate() + diff);\n      return fmt(x);\n    }\n  }\n  // ===== NUEVO: numero de dia del mes suelto: \"12\", \"el 12\", \"el dia 20\", \"el 12 de este mes\" =====\n  m = s.match(/\\b(\\d{1,2})\\b/);\n  if (m) {\n    const dia = parseInt(m[1], 10);\n    if (dia >= 1 && dia <= 31) {\n      let cand = new Date(hoy.getFullYear(), hoy.getMonth(), dia);\n      if (cand < hoy) cand = new Date(hoy.getFullYear(), hoy.getMonth() + 1, dia);\n      if (!isNaN(cand) && cand.getDate() === dia) return fmt(cand);\n    }\n  }\n  return '';\n}\nconst fechaResuelta = resolverFecha(d.fecha);\nconst fechaNuevaResuelta = resolverFecha(d.fecha_nueva);\nconst fechaHastaResuelta = resolverFecha(d.fecha_hasta);\nreturn [{ json: {\n  fn:          d.fn ?? '',\n  negocio_id:  d.negocio_id ?? '11111111-1111-1111-1111-111111111111',\n  servicio:    d.servicio ?? '',\n  fecha:       fechaResuelta,\n  fecha_original: d.fecha ?? '',\n  hora:        d.hora ?? '',\n  nombre:      d.nombre ?? 'cliente',\n  confirmar:   d.confirmar ?? '',\n  from_number: d.from_number ?? '',\n  profesional: d.profesional ?? '',\n  fecha_nueva:          fechaNuevaResuelta,\n  fecha_nueva_original: d.fecha_nueva ?? '',\n  hora_nueva:           d.hora_nueva ?? '',\n  servicio_nuevo:       d.servicio_nuevo ?? '',\n  fecha_hasta:          fechaHastaResuelta,\n  fecha_hasta_original: d.fecha_hasta ?? ''\n}}];"
       },
-      "id": "99247fd3-4ceb-4ad3-a093-4ac875944fdd",
+      "id": "41d9db17-4b65-43a3-86bb-7fc4f7d31035",
       "name": "1. Resolver fecha",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -218,7 +218,7 @@
         },
         "options": {}
       },
-      "id": "406b0963-5143-4e04-9ae4-55b9650d52d6",
+      "id": "8cd12a5b-0432-4e6b-a34b-4307d5eed45a",
       "name": "2. Router fn",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
@@ -230,10 +230,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  s.nombre AS servicio_nombre,\n  s.duracion_minutos AS duracion,\n  n.horario AS horario_negocio,\n  COALESCE(\n    (SELECT json_agg(json_build_object(\n        'ini', to_char(r.hora_inicio,'HH24:MI'),\n        'fin', to_char(r.hora_fin,'HH24:MI')))\n     FROM reservas r\n     WHERE r.negocio_id = '{{ $json.negocio_id }}'\n       AND r.fecha = NULLIF('{{ $json.fecha }}','')::date\n       AND r.estado IN ('confirmado','pendiente_confirmacion_cliente')),\n    '[]'::json\n  ) AS ocupadas\nFROM negocios n\nLEFT JOIN servicios s\n  ON s.negocio_id = n.id AND s.activo = true\n  AND unaccent(s.nombre) ILIKE unaccent('%{{ $json.servicio }}%')\nWHERE n.id = '{{ $json.negocio_id }}'\nLIMIT 1;",
+        "query": "SELECT\n  s.nombre AS servicio_nombre,\n  s.duracion_minutos AS duracion,\n  n.horario AS horario_negocio,\n  -- Profesionales que hacen ESTE servicio (vacío [] si el negocio no usa profesionales)\n  COALESCE(\n    (SELECT json_agg(json_build_object('id', p.id, 'nombre', p.nombre) ORDER BY p.nombre)\n     FROM profesional_servicios ps\n     JOIN profesionales p ON p.id = ps.profesional_id AND p.activo = true\n     WHERE ps.servicio_id = s.id),\n    '[]'::json\n  ) AS profesionales,\n  -- Ocupadas GLOBALES (como hoy — para negocios SIN profesionales)\n  COALESCE(\n    (SELECT json_agg(json_build_object(\n        'ini', to_char(r.hora_inicio,'HH24:MI'),\n        'fin', to_char(r.hora_fin,'HH24:MI')))\n     FROM reservas r\n     WHERE r.negocio_id = '{{ $json.negocio_id }}'\n       AND r.fecha = NULLIF('{{ $json.fecha }}','')::date\n       AND r.estado IN ('confirmado','pendiente_confirmacion_cliente')),\n    '[]'::json\n  ) AS ocupadas,\n  -- Ocupadas DEL PROFESIONAL elegido (solo si viene 'profesional' en la llamada)\n  COALESCE(\n    (SELECT json_agg(json_build_object(\n        'ini', to_char(r.hora_inicio,'HH24:MI'),\n        'fin', to_char(r.hora_fin,'HH24:MI')))\n     FROM reservas r\n     JOIN profesionales p ON p.id = r.profesional_id\n     WHERE r.negocio_id = '{{ $json.negocio_id }}'\n       AND r.fecha = NULLIF('{{ $json.fecha }}','')::date\n       AND r.estado IN ('confirmado','pendiente_confirmacion_cliente')\n       AND NULLIF('{{ $json.profesional }}','') IS NOT NULL\n       AND unaccent(p.nombre) ILIKE unaccent('%{{ $json.profesional }}%')),\n    '[]'::json\n  ) AS ocupadas_profesional,\n  -- Id+nombre del profesional elegido (para guardarlo en la reserva luego)\n  (SELECT json_build_object('id', p.id, 'nombre', p.nombre)\n     FROM profesionales p\n     WHERE p.negocio_id = '{{ $json.negocio_id }}' AND p.activo = true\n       AND NULLIF('{{ $json.profesional }}','') IS NOT NULL\n       AND unaccent(p.nombre) ILIKE unaccent('%{{ $json.profesional }}%')\n     LIMIT 1\n  ) AS profesional_elegido\nFROM negocios n\nLEFT JOIN servicios s\n  ON s.negocio_id = n.id AND s.activo = true\n  AND unaccent(s.nombre) ILIKE unaccent('%{{ $json.servicio }}%')\nWHERE n.id = '{{ $json.negocio_id }}'\nLIMIT 1;",
         "options": {}
       },
-      "id": "817842be-9250-4826-a328-4ec818d95059",
+      "id": "19b65b11-2079-4a15-a8c6-4f97ea0b2c7b",
       "name": "3a. Cargar datos",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -243,16 +243,16 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nif (!d.servicio_nombre) {\n  return [{ json: { response: 'NO_SERVICIO: No tenemos ese servicio. ¿Quiere otra cosa?' } }];\n}\nconst fechaStr = $('1. Resolver fecha').first().json.fecha;\nif (!fechaStr) {\n  return [{ json: { response: 'Necesito saber para qué día. ¿Qué día le viene bien?' } }];\n}\n\n// ===== CAPACIDAD POR NEGOCIO (reservas simultáneas; quien no esté aquí = 1, comportamiento de siempre) =====\nconst CAPACIDAD = {\n  '8d0ce837-82a2-4d0f-bf55-95d581d7d680': 10,   // La Tasqueta · mesas simultáneas << EDITAR si Quique da otra cifra >>\n};\n// ===== NEGOCIOS CON FRANJAS DE RESTAURANTE (mediodía/noche, corte 18h) =====\nconst RESTAURANTE = new Set([\n  '8d0ce837-82a2-4d0f-bf55-95d581d7d680',       // La Tasqueta\n]);\nconst negocioId = $('1. Resolver fecha').first().json.negocio_id || '';\nconst cap = CAPACIDAD[negocioId] ?? 1;\nconst esRestaurante = RESTAURANTE.has(negocioId);\n\nconst fecha = new Date(fechaStr + 'T00:00:00');\nconst diasMap = ['dom','lun','mar','mie','jue','vie','sab'];\nconst diaKey = diasMap[fecha.getDay()];\nconst nombresDia = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];\nconst horario = typeof d.horario_negocio === 'string' ? JSON.parse(d.horario_negocio) : (d.horario_negocio || {});\nconst tramoDia = horario[diaKey];\nif (!tramoDia || tramoDia === 'cerrado') {\n  for (let i = 1; i <= 7; i++) {\n    const f2 = new Date(fecha); f2.setDate(f2.getDate() + i);\n    const k = diasMap[f2.getDay()];\n    if (horario[k] && horario[k] !== 'cerrado') {\n      return [{ json: { response: 'CERRADO: Ese día está cerrado. El siguiente día que abrimos es el ' + nombresDia[f2.getDay()] + '. ¿Quiere que mire ese día?' } }];\n    }\n  }\n  return [{ json: { response: 'CERRADO: Ese día está cerrado.' } }];\n}\n// Duración del servicio pedido\nconst dur = d.duracion || 30;\n// Citas ocupadas como INTERVALOS en minutos (ini y fin)\nconst toMin = (s) => { const [h,m] = s.slice(0,5).split(':').map(Number); return h*60 + m; };\nconst ocupadas = (d.ocupadas || []).map(o => ({ ini: toMin(o.ini), fin: toMin(o.fin) }));\n// ===== NUEVO: si piden HOY, descartar horas ya pasadas =====\nconst ahoraTZ = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\nconst hoyStr = ahoraTZ.getFullYear() + '-' + String(ahoraTZ.getMonth()+1).padStart(2,'0') + '-' + String(ahoraTZ.getDate()).padStart(2,'0');\nconst esHoy = (fechaStr === hoyStr);\nconst minAhora = ahoraTZ.getHours() * 60 + ahoraTZ.getMinutes();\n// Generar slots: un slot cae SOLO cuando las reservas que solapan alcanzan la capacidad\nconst slots = [];\nfor (const tramo of tramoDia.split(',')) {\n  const [ini, fin] = tramo.split('-').map(Number);\n  for (let m = ini * 60; m + dur <= fin * 60; m += 30) {\n    if (esHoy && m <= minAhora) continue;   // hora ya pasada hoy\n    const slotFin = m + dur;\n    const solapan = ocupadas.filter(o => m < o.fin && slotFin > o.ini).length;\n    if (solapan < cap) {\n      const hh = String(Math.floor(m / 60)).padStart(2, '0');\n      const mm = String(m % 60).padStart(2, '0');\n      slots.push(`${hh}:${mm}`);\n    }\n  }\n}\nif (slots.length === 0) {\n  const msg = esRestaurante\n    ? 'SIN_HUECOS: No quedan mesas libres ese día. ¿Quiere que mire otro día?'\n    : 'SIN_HUECOS: No quedan huecos libres ese día. ¿Quiere que mire otro día?';\n  return [{ json: { response: msg } }];\n}\n// Agrupar en franjas: restaurante = mediodía/noche (corte 18h) · resto = mañana/tarde (corte 14h)\nconst corte  = esRestaurante ? 18 : 14;\nconst lblA   = esRestaurante ? '*Mediodía:*' : '*Por la mañana:*';\nconst lblB   = esRestaurante ? '*Por la noche:*' : '*Por la tarde:*';\nconst grupoA = slots.filter(s => parseInt(s.slice(0,2),10) < corte);\nconst grupoB = slots.filter(s => parseInt(s.slice(0,2),10) >= corte);\nconst fmt = (arr) => arr.map(s => s + 'h').join(', ');\nlet partes = [];\nif (grupoA.length) partes.push(lblA + ' ' + fmt(grupoA));\nif (grupoB.length) partes.push(lblB + ' ' + fmt(grupoB));\nconst intro = esRestaurante\n  ? 'Para una ' + String(d.servicio_nombre).toLowerCase() + ' el ' + nombresDia[fecha.getDay()] + ' tengo:'\n  : 'Para ' + d.servicio_nombre + ' el ' + nombresDia[fecha.getDay()] + ' tengo estos huecos:';\nconst cierre = esRestaurante ? '¿A qué hora les va bien?' : '¿Cuál prefieres?';\nconst texto = intro + '\\n\\n' + partes.join('\\n') + '\\n\\n' + cierre;\nreturn [{ json: { response: texto } }];"
+        "jsCode": "const d = $input.first().json;\nif (!d.servicio_nombre) {\n  return [{ json: { response: 'NO_SERVICIO: No tenemos ese servicio. ¿Quiere otra cosa?' } }];\n}\nconst fechaStr = $('1. Resolver fecha').first().json.fecha;\nif (!fechaStr) {\n  return [{ json: { response: 'Necesito saber para qué día. ¿Qué día le viene bien?' } }];\n}\n\nconst negocioId = $('1. Resolver fecha').first().json.negocio_id || '';\n\n// ===== CAPACIDAD POR NEGOCIO (reservas simultáneas; quien no esté aquí = 1) =====\nconst CAPACIDAD = {\n  '8d0ce837-82a2-4d0f-bf55-95d581d7d680': 10,   // La Tasqueta · mesas simultáneas\n};\nconst RESTAURANTE = new Set([\n  '8d0ce837-82a2-4d0f-bf55-95d581d7d680',       // La Tasqueta\n]);\nconst cap = CAPACIDAD[negocioId] ?? 1;\nconst esRestaurante = RESTAURANTE.has(negocioId);\n\n// ===== PROFESIONALES (regla de oro: si hay, modo profesional; si no, comportamiento de siempre) =====\nconst profesionales = d.profesionales || [];\nconst usaProfesionales = profesionales.length > 0;\nconst profesionalElegido = d.profesional_elegido || null;\n\n// CASO 1: el negocio usa profesionales PERO el cliente aun no eligio -> enseñar profesionales\nif (usaProfesionales && !profesionalElegido) {\n  const nombres = profesionales.map(p => p.nombre);\n  let listado;\n  if (nombres.length === 1) {\n    listado = nombres[0];\n  } else {\n    listado = nombres.slice(0, -1).join(', ') + ' o ' + nombres[nombres.length - 1];\n  }\n  return [{ json: { response: 'ELEGIR_PROFESIONAL: ' + d.servicio_nombre + ' lo realiza ' + listado + '. ¿Con quién prefieres la cita?' } }];\n}\n\nconst fecha = new Date(fechaStr + 'T00:00:00');\nconst diasMap = ['dom','lun','mar','mie','jue','vie','sab'];\nconst diaKey = diasMap[fecha.getDay()];\nconst nombresDia = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];\nconst horario = typeof d.horario_negocio === 'string' ? JSON.parse(d.horario_negocio) : (d.horario_negocio || {});\nconst tramoDia = horario[diaKey];\nif (!tramoDia || tramoDia === 'cerrado') {\n  for (let i = 1; i <= 7; i++) {\n    const f2 = new Date(fecha); f2.setDate(f2.getDate() + i);\n    const k = diasMap[f2.getDay()];\n    if (horario[k] && horario[k] !== 'cerrado') {\n      return [{ json: { response: 'CERRADO: Ese día está cerrado. El siguiente día que abrimos es el ' + nombresDia[f2.getDay()] + '. ¿Quiere que mire ese día?' } }];\n    }\n  }\n  return [{ json: { response: 'CERRADO: Ese día está cerrado.' } }];\n}\nconst dur = d.duracion || 30;\nconst toMin = (s) => { const [h,m] = s.slice(0,5).split(':').map(Number); return h*60 + m; };\n\n// Si hay profesional elegido -> usar SUS ocupadas y capacidad 1 (una agenda).\n// Si no (negocio sin profesionales) -> ocupadas globales y capacidad del negocio.\nconst ocupadasRaw = usaProfesionales ? (d.ocupadas_profesional || []) : (d.ocupadas || []);\nconst capEfectiva = usaProfesionales ? 1 : cap;\nconst ocupadas = ocupadasRaw.map(o => ({ ini: toMin(o.ini), fin: toMin(o.fin) }));\n\nconst ahoraTZ = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\nconst hoyStr = ahoraTZ.getFullYear() + '-' + String(ahoraTZ.getMonth()+1).padStart(2,'0') + '-' + String(ahoraTZ.getDate()).padStart(2,'0');\nconst esHoy = (fechaStr === hoyStr);\nconst minAhora = ahoraTZ.getHours() * 60 + ahoraTZ.getMinutes();\n\nconst slots = [];\nfor (const tramo of tramoDia.split(',')) {\n  const [ini, fin] = tramo.split('-').map(Number);\n  for (let m = ini * 60; m + dur <= fin * 60; m += 30) {\n    if (esHoy && m <= minAhora) continue;\n    const slotFin = m + dur;\n    const solapan = ocupadas.filter(o => m < o.fin && slotFin > o.ini).length;\n    if (solapan < capEfectiva) {\n      const hh = String(Math.floor(m / 60)).padStart(2, '0');\n      const mm = String(m % 60).padStart(2, '0');\n      slots.push(`${hh}:${mm}`);\n    }\n  }\n}\nif (slots.length === 0) {\n  const msg = esRestaurante\n    ? 'SIN_HUECOS: No quedan mesas libres ese día. ¿Quiere que mire otro día?'\n    : 'SIN_HUECOS: No quedan huecos libres ese día. ¿Quiere que mire otro día?';\n  return [{ json: { response: msg } }];\n}\nconst corte  = esRestaurante ? 18 : 14;\nconst lblA   = esRestaurante ? '*Mediodía:*' : '*Por la mañana:*';\nconst lblB   = esRestaurante ? '*Por la noche:*' : '*Por la tarde:*';\nconst grupoA = slots.filter(s => parseInt(s.slice(0,2),10) < corte);\nconst grupoB = slots.filter(s => parseInt(s.slice(0,2),10) >= corte);\nconst fmt = (arr) => arr.map(s => s + 'h').join(', ');\nlet partes = [];\nif (grupoA.length) partes.push(lblA + ' ' + fmt(grupoA));\nif (grupoB.length) partes.push(lblB + ' ' + fmt(grupoB));\n\nconst conQuien = profesionalElegido ? ' con ' + profesionalElegido.nombre : '';\nconst intro = esRestaurante\n  ? 'Para una ' + String(d.servicio_nombre).toLowerCase() + ' el ' + nombresDia[fecha.getDay()] + ' tengo:'\n  : 'Para ' + d.servicio_nombre + conQuien + ' el ' + nombresDia[fecha.getDay()] + ' tengo estos huecos:';\nconst cierre = esRestaurante ? '¿A qué hora les va bien?' : '¿Cuál prefieres?';\nconst texto = intro + '\\n\\n' + partes.join('\\n') + '\\n\\n' + cierre;\nreturn [{ json: { response: texto } }];"
       },
-      "id": "bc168609-303b-4f81-b07b-19f3a24eca76",
+      "id": "5d06edbd-7101-4811-9317-dfe73135245f",
       "name": "3a-2. Calcular huecos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -267,7 +267,7 @@
         "query": "WITH es_dueno AS (\n  -- GATE de actor: la agenda es SOLO para el responsable (dueño) del negocio.\n  -- Un cliente NUNCA debe ver la agenda completa (nombres/horas de terceros).\n  SELECT (dueno_telefono = '{{ $json.from_number }}') AS si\n  FROM negocios WHERE id = '{{ $json.negocio_id }}'\n),\nparams AS (\n  SELECT\n    COALESCE(NULLIF('{{ $json.fecha }}','')::date, (now() AT TIME ZONE 'Europe/Madrid')::date) AS desde,\n    COALESCE(NULLIF('{{ $json.fecha_hasta }}','')::date,\n             NULLIF('{{ $json.fecha }}','')::date,\n             (now() AT TIME ZONE 'Europe/Madrid')::date) AS hasta\n),\ncitas AS (\n  SELECT r.fecha, r.hora_inicio, r.servicios_resumen, r.cliente_nombre\n  FROM reservas r, params p\n  WHERE r.negocio_id = '{{ $json.negocio_id }}'\n    AND (SELECT si FROM es_dueno) = true   -- sin ser dueño no se lee ninguna fila\n    AND r.estado IN ('confirmado','pendiente_confirmacion_cliente')\n    AND r.fecha BETWEEN LEAST(p.desde,p.hasta) AND GREATEST(p.desde,p.hasta)\n),\npor_dia AS (\n  SELECT\n    fecha,\n    '*' || (CASE EXTRACT(DOW FROM fecha)::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END) || ' ' || to_char(fecha,'DD/MM') || '*'\n    || E'\\n' ||\n    string_agg(\n      '  ' || to_char(hora_inicio,'HH24:MI') || 'h · ' || servicios_resumen || ' — ' || COALESCE(NULLIF(cliente_nombre,''),'sin nombre'),\n      E'\\n' ORDER BY hora_inicio\n    ) AS bloque\n  FROM citas\n  GROUP BY fecha\n)\nSELECT\n  CASE\n    WHEN (SELECT si FROM es_dueno) IS NOT TRUE THEN\n      'NO_AUTORIZADO: solo el responsable del negocio puede ver la agenda.'\n    ELSE COALESCE(\n      (SELECT '🗓️ *Agenda*' || E'\\n\\n' || string_agg(bloque, E'\\n\\n' ORDER BY fecha) FROM por_dia),\n      'No hay citas en esas fechas.'\n    )\n  END AS response;",
         "options": {}
       },
-      "id": "3c7ebcc1-1984-4331-a8ef-8d54dbbc6239",
+      "id": "7f75428a-dc0c-4058-aff0-dbcd4faf736b",
       "name": "3d. Consultar agenda",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -277,18 +277,18 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH svc AS (\n  SELECT nombre, duracion_minutos, precio, profesional\n  FROM servicios\n  WHERE negocio_id = '{{ $json.negocio_id }}' AND activo = true\n    AND unaccent(nombre) ILIKE unaccent('%{{ $json.servicio }}%')\n  LIMIT 1\n),\ncalc AS (\n  SELECT\n    NULLIF('{{ $json.fecha }}','')::date AS f_fecha,\n    NULLIF('{{ $json.hora }}','')::time  AS f_hora_inicio,\n    (NULLIF('{{ $json.hora }}','')::time + (svc.duracion_minutos || ' minutes')::interval) AS f_hora_fin,\n    svc.nombre, svc.duracion_minutos, svc.precio, svc.profesional\n  FROM svc\n),\nsolape AS (\n  SELECT 1\n  FROM calc c\n  WHERE (\n    SELECT COUNT(*)\n    FROM reservas r\n    WHERE r.negocio_id = '{{ $json.negocio_id }}'\n      AND r.estado = 'confirmado'\n      AND r.fecha = c.f_fecha\n      AND r.hora_inicio < c.f_hora_fin\n      AND r.hora_fin   > c.f_hora_inicio\n  ) >= CASE\n         WHEN '{{ $json.negocio_id }}' = '8d0ce837-82a2-4d0f-bf55-95d581d7d680' THEN 10  -- La Tasqueta · mesas << EDITAR junto con 3a-2 >>\n         ELSE 1                                                                          -- resto: recurso único, como siempre\n       END\n),\nins AS (\n  INSERT INTO reservas\n    (negocio_id, cliente_telefono, cliente_nombre, servicios_resumen,\n     duracion_minutos, precio_total, fecha, hora_inicio, hora_fin, profesional, estado)\n  SELECT\n  '{{ $json.negocio_id }}',\n  NULLIF(CASE WHEN '{{ $json.from_number }}' = (SELECT dueno_telefono FROM negocios WHERE id = '{{ $json.negocio_id }}') THEN '' ELSE '{{ $json.from_number }}' END, ''),\n  '{{ $json.nombre }}', c.nombre,\n    c.duracion_minutos, c.precio, c.f_fecha, c.f_hora_inicio, c.f_hora_fin,\n    c.profesional, 'confirmado'\n  FROM calc c\n  WHERE NOT EXISTS (SELECT 1 FROM solape)\n    AND c.f_hora_inicio IS NOT NULL\n    AND (c.f_fecha + c.f_hora_inicio) > (now() AT TIME ZONE 'Europe/Madrid')   -- NUEVO: rechaza horas ya pasadas\n    AND NULLIF(TRIM('{{ $json.nombre }}'),'') IS NOT NULL\n    AND LOWER(TRIM('{{ $json.nombre }}')) <> 'cliente'\n  RETURNING cliente_nombre, servicios_resumen, fecha, hora_inicio, profesional, precio_total\n),\nneg AS (\n  SELECT dueno_telefono, phone_number_id FROM negocios WHERE id = '{{ $json.negocio_id }}'\n)\nSELECT\n  CASE\n    WHEN EXISTS (SELECT 1 FROM ins) THEN\n      '*Cita confirmada* ✅' || E'\\n\\n' ||\n      '*' || (SELECT servicios_resumen FROM ins) || '*' || E'\\n' ||\n      (CASE EXTRACT(DOW FROM (SELECT fecha FROM ins))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n      || ' ' || to_char((SELECT fecha FROM ins),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM ins),'HH24:MI') || 'h' ||\n      COALESCE(E'\\n' || (SELECT profesional FROM ins),'') ||\n      COALESCE(E'\\n' || (SELECT precio_total FROM ins)::numeric(10,0)::text || '€','') || E'\\n\\n' ||\n      'Te esperamos. Si necesitas cambiarla, escríbenos por aquí.'\n    WHEN (SELECT (c.f_fecha + c.f_hora_inicio) <= (now() AT TIME ZONE 'Europe/Madrid') FROM calc c) THEN\n      'HORA_PASADA: Esa hora ya ha pasado. Ofrécele otro día o una hora futura.'   -- NUEVO\n    WHEN EXISTS (SELECT 1 FROM solape) THEN\n      'OCUPADO: Esa franja ya está cogida. Ofrece otra hora distinta.'\n    WHEN NULLIF(TRIM('{{ $json.nombre }}'),'') IS NULL OR LOWER(TRIM('{{ $json.nombre }}')) = 'cliente' THEN\n      'FALTA_NOMBRE: Antes de crear la cita necesitas el nombre completo de la persona. Pregúntaselo y no crees nada todavía.'\n    ELSE\n      'ERROR: No he podido crear la cita. Revisa el servicio o la hora.'\n  END AS response,\n  neg.dueno_telefono,\n  neg.phone_number_id,\n  CASE WHEN EXISTS (SELECT 1 FROM ins) THEN\n    '🟢 *Nueva reserva*' || E'\\n\\n' ||\n    (SELECT servicios_resumen FROM ins) || E'\\n' ||\n    (CASE EXTRACT(DOW FROM (SELECT fecha FROM ins))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n    || ' ' || to_char((SELECT fecha FROM ins),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM ins),'HH24:MI') || 'h' ||\n    COALESCE(E'\\nPaciente: ' || NULLIF((SELECT cliente_nombre FROM ins),''),'')\n  ELSE '' END AS notif_text,\n  CASE WHEN EXISTS (SELECT 1 FROM ins) AND '{{ $json.from_number }}' <> neg.dueno_telefono THEN 'si' ELSE 'no' END AS should_notify\nFROM neg;",
+        "query": "WITH svc AS (\n  SELECT id, nombre, duracion_minutos, precio, profesional\n  FROM servicios\n  WHERE negocio_id = '{{ $json.negocio_id }}' AND activo = true\n    AND unaccent(nombre) ILIKE unaccent('%{{ $json.servicio }}%')\n  LIMIT 1\n),\nprof AS (\n  -- Profesional elegido (solo si viene 'profesional' en la llamada)\n  SELECT p.id, p.nombre\n  FROM profesionales p\n  WHERE p.negocio_id = '{{ $json.negocio_id }}' AND p.activo = true\n    AND NULLIF('{{ $json.profesional }}','') IS NOT NULL\n    AND unaccent(p.nombre) ILIKE unaccent('%{{ $json.profesional }}%')\n  LIMIT 1\n),\ncalc AS (\n  SELECT\n    NULLIF('{{ $json.fecha }}','')::date AS f_fecha,\n    NULLIF('{{ $json.hora }}','')::time  AS f_hora_inicio,\n    (NULLIF('{{ $json.hora }}','')::time + (svc.duracion_minutos || ' minutes')::interval) AS f_hora_fin,\n    svc.nombre, svc.duracion_minutos, svc.precio,\n    COALESCE((SELECT nombre FROM prof), svc.profesional) AS prof_nombre,\n    (SELECT id FROM prof) AS prof_id\n  FROM svc\n),\nsolape AS (\n  SELECT 1\n  FROM calc c\n  WHERE (\n    SELECT COUNT(*)\n    FROM reservas r\n    WHERE r.negocio_id = '{{ $json.negocio_id }}'\n      AND r.estado = 'confirmado'\n      AND r.fecha = c.f_fecha\n      AND r.hora_inicio < c.f_hora_fin\n      AND r.hora_fin   > c.f_hora_inicio\n      -- Si hay profesional elegido: el solape se mira SOLO contra SU agenda.\n      -- Si no (negocio sin profesionales): se mira contra todas (como hoy).\n      AND ( c.prof_id IS NULL OR r.profesional_id = c.prof_id )\n  ) >= CASE\n         WHEN (SELECT prof_id FROM calc) IS NOT NULL THEN 1   -- profesional = mono en su agenda\n         WHEN '{{ $json.negocio_id }}' = '8d0ce837-82a2-4d0f-bf55-95d581d7d680' THEN 10  -- La Tasqueta · mesas\n         ELSE 1                                                                          -- resto: recurso único\n       END\n),\nins AS (\n  INSERT INTO reservas\n    (negocio_id, cliente_telefono, cliente_nombre, servicios_resumen,\n     duracion_minutos, precio_total, fecha, hora_inicio, hora_fin, profesional, profesional_id, estado)\n  SELECT\n  '{{ $json.negocio_id }}',\n  NULLIF(CASE WHEN '{{ $json.from_number }}' = (SELECT dueno_telefono FROM negocios WHERE id = '{{ $json.negocio_id }}') THEN '' ELSE '{{ $json.from_number }}' END, ''),\n  '{{ $json.nombre }}', c.nombre,\n    c.duracion_minutos, c.precio, c.f_fecha, c.f_hora_inicio, c.f_hora_fin,\n    c.prof_nombre, c.prof_id, 'confirmado'\n  FROM calc c\n  WHERE NOT EXISTS (SELECT 1 FROM solape)\n    AND c.f_hora_inicio IS NOT NULL\n    AND (c.f_fecha + c.f_hora_inicio) > (now() AT TIME ZONE 'Europe/Madrid')\n    AND NULLIF(TRIM('{{ $json.nombre }}'),'') IS NOT NULL\n    AND LOWER(TRIM('{{ $json.nombre }}')) <> 'cliente'\n  RETURNING cliente_nombre, servicios_resumen, fecha, hora_inicio, profesional, precio_total\n),\nneg AS (\n  SELECT dueno_telefono, phone_number_id FROM negocios WHERE id = '{{ $json.negocio_id }}'\n)\nSELECT\n  CASE\n    WHEN EXISTS (SELECT 1 FROM ins) THEN\n      '*Cita confirmada* ✅' || E'\\n\\n' ||\n      '*' || (SELECT servicios_resumen FROM ins) || '*' || E'\\n' ||\n      (CASE EXTRACT(DOW FROM (SELECT fecha FROM ins))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n      || ' ' || to_char((SELECT fecha FROM ins),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM ins),'HH24:MI') || 'h' ||\n      COALESCE(E'\\n' || (SELECT profesional FROM ins),'') ||\n      COALESCE(E'\\n' || (SELECT precio_total FROM ins)::numeric(10,0)::text || '€','') || E'\\n\\n' ||\n      'Te esperamos. Si necesitas cambiarla, escríbenos por aquí.'\n    WHEN (SELECT (c.f_fecha + c.f_hora_inicio) <= (now() AT TIME ZONE 'Europe/Madrid') FROM calc c) THEN\n      'HORA_PASADA: Esa hora ya ha pasado. Ofrécele otro día o una hora futura.'\n    WHEN EXISTS (SELECT 1 FROM solape) THEN\n      'OCUPADO: Esa franja ya está cogida. Ofrece otra hora distinta.'\n    WHEN NULLIF(TRIM('{{ $json.nombre }}'),'') IS NULL OR LOWER(TRIM('{{ $json.nombre }}')) = 'cliente' THEN\n      'FALTA_NOMBRE: Antes de crear la cita necesitas el nombre completo de la persona. Pregúntaselo y no crees nada todavía.'\n    ELSE\n      'ERROR: No he podido crear la cita. Revisa el servicio o la hora.'\n  END AS response,\n  neg.dueno_telefono,\n  neg.phone_number_id,\n  CASE WHEN EXISTS (SELECT 1 FROM ins) THEN\n    '🟢 *Nueva reserva*' || E'\\n\\n' ||\n    (SELECT servicios_resumen FROM ins) || E'\\n' ||\n    (CASE EXTRACT(DOW FROM (SELECT fecha FROM ins))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END)\n    || ' ' || to_char((SELECT fecha FROM ins),'DD/MM') || ' · ' || to_char((SELECT hora_inicio FROM ins),'HH24:MI') || 'h' ||\n    COALESCE(E'\\nPaciente: ' || NULLIF((SELECT cliente_nombre FROM ins),''),'')\n  ELSE '' END AS notif_text,\n  CASE WHEN EXISTS (SELECT 1 FROM ins) AND '{{ $json.from_number }}' <> neg.dueno_telefono THEN 'si' ELSE 'no' END AS should_notify\nFROM neg;",
         "options": {}
       },
-      "id": "8fc37bac-cdb0-4764-a74f-3d07d0edcff7",
+      "id": "3fddfd84-1d22-45af-8655-5ef91f6c63f1",
       "name": "3b. Crear reserva",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -298,8 +298,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -309,7 +309,7 @@
         "query": "WITH es_dueno AS (\n  SELECT (dueno_telefono = '{{ $json.from_number }}') AS si\n  FROM negocios WHERE id = '{{ $json.negocio_id }}'\n),\nencontradas AS (\n  SELECT id, servicios_resumen, fecha, hora_inicio\n  FROM reservas\n  WHERE negocio_id = '{{ $json.negocio_id }}'\n    AND estado IN ('confirmado','pendiente_confirmacion_cliente')\n    AND fecha = NULLIF('{{ $json.fecha }}','')::date\n    AND ('{{ $json.hora }}' = '' OR hora_inicio = NULLIF('{{ $json.hora }}','')::time)\n    -- Si es el dueño: puede cancelar cualquier cita. Si es cliente: solo las suyas (por su teléfono).\n    AND ( (SELECT si FROM es_dueno) = true OR cliente_telefono = '{{ $json.from_number }}' )\n    -- Filtro extra por nombre SOLO si el dueño da un nombre concreto (para desambiguar entre pacientes)\n    AND ( (SELECT si FROM es_dueno) = false OR '{{ $json.nombre }}' = '' OR '{{ $json.nombre }}' = 'cliente' OR unaccent(cliente_nombre) ILIKE unaccent('%{{ $json.nombre }}%') )\n),\ncancelada AS (\n  UPDATE reservas SET estado = 'cancelado'\n  WHERE id = (SELECT id FROM encontradas LIMIT 1)\n    AND '{{ $json.confirmar }}' = 'si'\n    AND (SELECT count(*) FROM encontradas) = 1\n  RETURNING servicios_resumen, fecha, hora_inicio\n),\nneg AS (\n  SELECT dueno_telefono, phone_number_id FROM negocios WHERE id = '{{ $json.negocio_id }}'\n)\nSELECT\n  CASE\n    WHEN EXISTS (SELECT 1 FROM cancelada) THEN\n      '*Cita cancelada*' || E'\\n\\n' ||\n      '*' || (SELECT servicios_resumen FROM cancelada) || '*' || E'\\n' ||\n      (CASE EXTRACT(DOW FROM (SELECT fecha FROM cancelada))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END) || ' ' || to_char((SELECT fecha FROM cancelada),'DD/MM') || ' · ' ||\n      to_char((SELECT hora_inicio FROM cancelada),'HH24:MI') || 'h' || E'\\n\\n' ||\n      'Queda anulada. Si quieres, puedes reservar otra cuando te vaya bien.'\n    WHEN (SELECT count(*) FROM encontradas) = 0 THEN\n      'NO_ENCONTRADA: No encuentro ninguna cita para ese día.'\n    WHEN (SELECT count(*) FROM encontradas) > 1 THEN\n      'VARIAS: Hay ' || (SELECT count(*) FROM encontradas)::text || ' citas ese día: ' ||\n      (SELECT string_agg(to_char(hora_inicio,'HH24:MI') || ' (' || servicios_resumen || ')', ', ') FROM encontradas) ||\n      '. Pregunta cuál quiere cancelar (por hora o servicio).'\n    ELSE\n      'CONFIRMAR: Encontrada cita de ' || (SELECT servicios_resumen FROM encontradas LIMIT 1) ||\n      ' el ' || to_char((SELECT fecha FROM encontradas LIMIT 1),'DD/MM') ||\n      ' a las ' || to_char((SELECT hora_inicio FROM encontradas LIMIT 1),'HH24:MI') ||\n      '. Pide confirmación al usuario antes de cancelar.'\n  END AS response,\n  neg.dueno_telefono,\n  neg.phone_number_id,\n  CASE WHEN EXISTS (SELECT 1 FROM cancelada) THEN\n    '🔴 *Cita cancelada*' || E'\\n\\n' ||\n    (SELECT servicios_resumen FROM cancelada) || E'\\n' ||\n    (CASE EXTRACT(DOW FROM (SELECT fecha FROM cancelada))::int WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Lunes' WHEN 2 THEN 'Martes' WHEN 3 THEN 'Miércoles' WHEN 4 THEN 'Jueves' WHEN 5 THEN 'Viernes' WHEN 6 THEN 'Sábado' END) || ' ' || to_char((SELECT fecha FROM cancelada),'DD/MM') || ' · ' ||\n    to_char((SELECT hora_inicio FROM cancelada),'HH24:MI') || 'h'\n  ELSE '' END AS notif_text,\n  CASE WHEN EXISTS (SELECT 1 FROM cancelada) AND '{{ $json.from_number }}' <> neg.dueno_telefono\n       THEN 'si' ELSE 'no' END AS should_notify\nFROM neg;",
         "options": {}
       },
-      "id": "c1b96a8e-0975-425b-8685-b0fc638f65f2",
+      "id": "f2b8de0a-3957-4a23-a613-fd0401d2d6c9",
       "name": "3c. Cancelar reserva",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -319,8 +319,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -356,7 +356,7 @@
         48,
         384
       ],
-      "id": "8fcb0496-5b34-448d-aee6-3ed3bfbe8cca",
+      "id": "9ca282bb-dc99-4d2f-a3cb-79b2fae86f6c",
       "name": "Aviso empresario ?"
     },
     {
@@ -386,7 +386,7 @@
         336,
         240
       ],
-      "id": "339ebdcb-a206-414c-ac9c-d747c758cb61",
+      "id": "5e8f9cfa-8d3d-4b99-afa3-6dc390044a1b",
       "retryOnFail": true,
       "credentials": {
         "httpHeaderAuth": {
@@ -416,7 +416,7 @@
         528,
         368
       ],
-      "id": "b13bc9b8-6f98-404e-8d4b-c556a5bdde89",
+      "id": "c4ce382d-049c-46d2-bf77-ac5afb55d284",
       "name": "N3 Salida"
     },
     {
@@ -431,12 +431,12 @@
         -176,
         928
       ],
-      "id": "eabe7900-cdb8-4006-af79-d35f9c2de2c5",
+      "id": "9cf71170-a70f-426f-9eec-b8cc2d93e47f",
       "name": "3e.Actualizar",
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -452,12 +452,12 @@
         -176,
         1104
       ],
-      "id": "1d980ac2-2cb3-471d-8968-3bb64d187b8d",
+      "id": "db19eaf6-c4bb-4bce-9616-989253748458",
       "name": "3f.MisReservas",
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     }
@@ -466,14 +466,14 @@
     "Trigger (desde agente)": [
       {
         "json": {
-          "fn": "cancelar",
-          "negocio_id": "11111111-1111-1111-1111-111111111111",
-          "servicio": "",
-          "fecha": "2026-06-03",
-          "hora": "16:00",
-          "nombre": "Test Cliente",
-          "confirmar": "si",
-          "from_number": "34699999999"
+          "fn": "crear",
+          "negocio_id": "40000000-0000-0000-0000-000000000004",
+          "servicio": "botox",
+          "fecha": "mañana",
+          "hora": "11:00",
+          "profesional": "Laura",
+          "from_number": "34699999999",
+          "nombre": "Cliente Prueba Profesional"
         }
       }
     ]
@@ -621,29 +621,24 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "versionId": "799091c7-7903-4b56-be5f-42984fc576f8",
+  "versionId": "dcf7f040-389d-4494-8cc1-ea41552c9160",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0c633d92281d3e60391559b2314488b80dd3e4438762e47aaa5a33925c00f2e0"
   },
-  "id": "nzjWscGj9DoXKIzG",
+  "id": "6UgauiTycOIrC7ES",
   "tags": [
     {
-      "updatedAt": "2026-06-01T13:26:10.737Z",
-      "createdAt": "2026-06-01T13:26:10.737Z",
-      "id": "8GxTKbjXJBKlaMOQ",
-      "name": "RESERVAS"
-    },
-    {
-      "updatedAt": "2026-06-03T13:29:55.189Z",
-      "createdAt": "2026-06-03T13:29:32.343Z",
-      "id": "Gve7pVUsmXhh6iyw",
-      "name": "MonoReservas"
+      "updatedAt": "2026-05-28T10:42:44.810Z",
+      "createdAt": "2026-05-28T10:42:44.810Z",
+      "id": "Szz3cj6npBFMdls0",
+      "name": "DEV"
     }
   ]
 }
