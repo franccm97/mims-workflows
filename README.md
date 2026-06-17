@@ -67,11 +67,35 @@ npm test                          # tests del scrub + guard + deploy
 ## Estructura
 
 ```
-workflows/   JSON limpios (canonico/ · motor/ · voz/)
+workflows/   JSON limpios (canonico/ · motor/ · tasqueta/ · voz/)
 clientes/    config de referencia por cliente (datos NO sensibles)
-scripts/     scrub.mjs · check-secrets.mjs
+scripts/     scrub.mjs · check-secrets.mjs · deploy.mjs · setup-dev-db.sql
+db/          schema.prod.sql (DDL vendored) · seed-dev.sql (sintético)
+docs/        deploy-2b.md
 .githooks/   pre-commit
+.github/     workflows/ci.yml
 ```
+
+## DB de desarrollo (local, NUNCA prod)
+
+Para probar los flujos contra una DB tuya sin tocar producción:
+[`scripts/setup-dev-db.sql`](scripts/setup-dev-db.sql) crea `mims_dev`, le aplica
+**solo el schema de prod** ([`db/schema.prod.sql`](db/schema.prod.sql), cero datos) y
+siembra 3 negocios sintéticos (restaurante / clínica / peluquería) con servicios y
+reservas de prueba ([`db/seed-dev.sql`](db/seed-dev.sql), fechas relativas, cero PII).
+
+```bash
+# desde la raíz del repo, contra tu Postgres local de dev:
+psql -h localhost -U postgres -f scripts/setup-dev-db.sql
+```
+
+⚠️ Recrea (DROP/CREATE) la DB `mims_dev`. No la apuntes a `mims_app` (prod).
+
+## CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): en cada push/PR corre `node
+--test` (scrub + guard + deploy) y el guard `--all` (escanea todo lo trackeado por
+secretos). No toca n8n ni ninguna DB.
 
 ## Deploy GitHub → n8n (2-B)
 

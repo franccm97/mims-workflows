@@ -113,6 +113,24 @@ function main(argv) {
         for (const h of hits) console.error(`    • ${h.desc} -> ${h.sample}  [${h.rule}]`);
       }
     }
+  } else if (argv[0] === "--all") {
+    // Escanea TODO lo trackeado por git (lo usa el CI). Lee del working tree.
+    const out = execSync("git ls-files", { encoding: "utf8" });
+    for (const file of out.split("\n").map((s) => s.trim()).filter(Boolean)) {
+      if (skip(file)) continue;
+      let content;
+      try {
+        content = readFileSync(file, "utf8");
+      } catch {
+        continue;
+      }
+      const hits = scanText(content);
+      if (hits.length) {
+        failed = true;
+        console.error(`\n  ${file}:`);
+        for (const h of hits) console.error(`    • ${h.desc} -> ${h.sample}  [${h.rule}]`);
+      }
+    }
   } else if (argv[0]) {
     const hits = scanText(readFileSync(argv[0], "utf8"));
     if (hits.length) {
@@ -120,7 +138,7 @@ function main(argv) {
       for (const h of hits) console.error(`  • ${h.desc} -> ${h.sample}  [${h.rule}]`);
     }
   } else {
-    console.error("uso: node scripts/check-secrets.mjs --staged | <archivo>");
+    console.error("uso: node scripts/check-secrets.mjs --staged | --all | <archivo>");
     process.exit(2);
   }
 

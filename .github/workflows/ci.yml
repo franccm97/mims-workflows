@@ -1,0 +1,24 @@
+name: CI
+
+# Tests + guard anti-secretos en cada push y PR.
+# NO toca n8n ni ninguna DB: solo corre los tests del repo y escanea por secretos.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Sin dependencias externas: no hace falta npm install.
+      - name: Tests (scrub + guard + deploy)
+        run: node --test
+
+      - name: Guard anti-secretos (todo lo trackeado)
+        run: node scripts/check-secrets.mjs --all
