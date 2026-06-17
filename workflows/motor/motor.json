@@ -40,6 +40,9 @@
             },
             {
               "name": "fecha_hasta"
+            },
+            {
+              "name": "profesional"
             }
           ]
         }
@@ -466,14 +469,13 @@
     "Trigger (desde agente)": [
       {
         "json": {
-          "fn": "crear",
+          "fn": "consultar",
           "negocio_id": "40000000-0000-0000-0000-000000000004",
           "servicio": "botox",
           "fecha": "mañana",
-          "hora": "11:00",
-          "profesional": "Laura",
-          "from_number": "34699999999",
-          "nombre": "Cliente Prueba Profesional"
+          "profesional": "Marc",
+          "from_number": "34600000401",
+          "nombre": "Prueba"
         }
       }
     ]
@@ -627,7 +629,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "dcf7f040-389d-4494-8cc1-ea41552c9160",
+  "versionId": "16a67607-1336-49a5-9492-395b6932043d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0c633d92281d3e60391559b2314488b80dd3e4438762e47aaa5a33925c00f2e0"
