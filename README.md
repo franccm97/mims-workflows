@@ -59,7 +59,9 @@ commit). Si no, el repo y n8n divergen y se pierde la fuente de verdad.
 ```bash
 npm run scrub -- <archivo.json>   # limpia un export
 npm run check-secrets             # escanea lo staged (lo que corre el guard)
-npm test                          # tests del scrub + guard
+npm run deploy                    # dry-run del deploy GitHub->n8n (2-B)
+npm run deploy -- --live          # aplica el deploy (ver docs/deploy-2b.md)
+npm test                          # tests del scrub + guard + deploy
 ```
 
 ## Estructura
@@ -71,9 +73,12 @@ scripts/     scrub.mjs · check-secrets.mjs
 .githooks/   pre-commit
 ```
 
-## Qué NO está aquí (es 2-B)
+## Deploy GitHub → n8n (2-B)
 
-Hacer estos JSON **desplegables**: poner las env vars (`CHATWOOT_API_TOKEN`...) en
-la instancia de n8n (Hetzner) + un script de deploy GitHub→n8n. Un JSON con
-`={{ $env.CHATWOOT_API_TOKEN }}` **no funciona** re-importado hasta que esa env var
-exista en n8n. Aquí solo está la **fuente de verdad limpia** + el tooling.
+El deploy ya está aquí: [`scripts/deploy.mjs`](scripts/deploy.mjs) empuja los JSON
+limpios a la instancia de n8n por su REST API (actualiza por id). **Dry-run por
+defecto**; `--live` para aplicar. Guía completa (env var en el host, API key,
+cuidados): [docs/deploy-2b.md](docs/deploy-2b.md).
+
+Recuerda: un JSON con `={{ $env.CHATWOOT_API_TOKEN }}` **no funciona** hasta que esa
+env var exista en la instancia de n8n (Parte A de la guía).

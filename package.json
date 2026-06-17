@@ -11,6 +11,7 @@
     "scrub": "node scripts/scrub.mjs",
     "check-secrets": "node scripts/check-secrets.mjs --staged",
     "hooks:install": "git config core.hooksPath .githooks",
+    "deploy": "node scripts/deploy.mjs",
     "test": "node --test"
   }
 }
