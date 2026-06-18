@@ -70,7 +70,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const root = $input.first().json;\nconst body = root.body ?? root;\n\n// ===== Filtros: solo mensajes entrantes del cliente =====\nconst evento     = body.event ?? '';\nconst tipoMsg    = body.message_type ?? '';          // 'incoming' | 'outgoing'\nconst esPrivado  = body.private ?? false;            // notas internas\nconst estadoConv = body.conversation?.status ?? body.status ?? '';\n\n// Cortar si: no es mensaje nuevo / no es entrante / es nota privada\nif (evento !== 'message_created' || tipoMsg !== 'incoming' || esPrivado === true) {\n  return [];\n}\n\n// Cortar si la conversación NO está en 'pending' (handoff: un humano la cogió)\nif (estadoConv && estadoConv !== 'pending') {\n  return [];\n}\n\n// ===== Extraer datos (estructura Chatwoot) =====\nconst conv     = body.conversation ?? {};\nconst sender   = body.sender ?? {};\nconst convId   = conv.id ?? body.conversation_id ?? '';\nconst cuentaId = body.account?.id ?? conv.account_id ?? '';\nconst inboxId  = conv.inbox_id ?? body.inbox?.id ?? '';\n\nconst telefono = (sender.phone_number ?? '').replace('+', '');\n\n// ===== Detección de audio =====\nconst msgAnidado = body.conversation?.messages?.[0] ?? {};\nconst adjuntos = (body.attachments && body.attachments.length ? body.attachments : null)\n              ?? (msgAnidado.attachments && msgAnidado.attachments.length ? msgAnidado.attachments : null)\n              ?? [];\n\nconst audioAdj = adjuntos.find(a =>\n  a.file_type === 'audio' || a.file_type === 1 ||\n  (a.data_url && /\\.(ogg|oga|mp3|m4a|amr|wav)/i.test(a.data_url))\n) || (adjuntos.length > 0 ? adjuntos[0] : null);\n\nconst textoMsg = body.content ?? msgAnidado.content ?? '';\n\nreturn [{ json: {\n  from:             telefono,\n  message_id:       String(body.id ?? ''),\n  tipo:             audioAdj ? 'audio' : 'text',\n  texto:            textoMsg ?? '',\n  nombre:           sender.name ?? '',\n  conversation_id:  String(convId),\n  account_id:       String(cuentaId),\n  inbox_id:         String(inboxId),\n  audio_url:        audioAdj ? (audioAdj.data_url ?? '') : ''\n}}];"
+        "jsCode": "const root = $input.first().json;\nconst body = root.body ?? root;\n\n// ===== Filtros: solo mensajes entrantes del cliente =====\nconst evento     = body.event ?? '';\nconst tipoMsg    = body.message_type ?? '';\nconst esPrivado  = body.private ?? false;\nconst estadoConv = body.conversation?.status ?? body.status ?? '';\n\nif (evento !== 'message_created' || tipoMsg !== 'incoming' || esPrivado === true) {\n  return [];\n}\nif (estadoConv && estadoConv !== 'pending') {\n  return [];\n}\n\n// ===== Extraer datos (estructura Chatwoot) =====\nconst conv     = body.conversation ?? {};\nconst sender   = body.sender ?? {};\nconst convId   = conv.id ?? body.conversation_id ?? '';\nconst cuentaId = body.account?.id ?? conv.account_id ?? '';\nconst inboxId  = conv.inbox_id ?? body.inbox?.id ?? '';\n\nconst telefono = (sender.phone_number ?? '').replace('+', '');\n\n// ===== Adjuntos =====\nconst msgAnidado = body.conversation?.messages?.[0] ?? {};\nconst adjuntos = (body.attachments && body.attachments.length ? body.attachments : null)\n              ?? (msgAnidado.attachments && msgAnidado.attachments.length ? msgAnidado.attachments : null)\n              ?? [];\n\n// Audio SOLO si el adjunto es de tipo audio (NO agarrar cualquier adjunto)\nconst audioAdj = adjuntos.find(a =>\n  a.file_type === 'audio' || a.file_type === 1 ||\n  (a.data_url && /\\.(ogg|oga|mp3|m4a|amr|wav)/i.test(a.data_url))\n) || null;\n\nconst textoMsg = body.content ?? msgAnidado.content ?? '';\n\n// ===== Clasificación del tipo de entrada =====\nlet tipo;\nif (audioAdj) {\n  tipo = 'audio';\n} else if (adjuntos.length > 0) {\n  // Hay adjunto pero NO es audio: imagen, vídeo, sticker, doc, ubicación, contacto...\n  tipo = 'no_soportado';\n} else if (!textoMsg || !textoMsg.trim()) {\n  // Sin adjunto y sin texto: mensaje vacío\n  tipo = 'no_soportado';\n} else {\n  tipo = 'text';\n}\n\nreturn [{ json: {\n  from:             telefono,\n  message_id:       String(body.id ?? ''),\n  tipo:             tipo,\n  texto:            textoMsg ?? '',\n  nombre:           sender.name ?? '',\n  conversation_id:  String(convId),\n  account_id:       String(cuentaId),\n  inbox_id:         String(inboxId),\n  audio_url:        audioAdj ? (audioAdj.data_url ?? '') : ''\n}}];"
       },
       "id": "837f1a64-b956-4b02-97c0-b64edb3458ec",
       "name": "2. Parsear Meta",
@@ -138,7 +138,7 @@
                 "conditions": [
                   {
                     "id": "cond-cliente",
-                    "leftValue": "={{ $('4. Cargar negocio + rol').first().json.rol }}",
+                    "leftValue": "=={{ $('4. Cargar negocio + rol').first().json.rol }}",
                     "rightValue": "cliente",
                     "operator": {
                       "type": "string",
@@ -162,7 +162,7 @@
                 "conditions": [
                   {
                     "id": "cond-empresario",
-                    "leftValue": "={{ $('4. Cargar negocio + rol').first().json.rol }}",
+                    "leftValue": "=={{ $('4. Cargar negocio + rol').first().json.rol }}",
                     "rightValue": "empresario",
                     "operator": {
                       "type": "string",
@@ -184,8 +184,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        1296,
-        3664
+        1968,
+        3680
       ]
     },
     {
@@ -194,14 +194,14 @@
         "text": "=Hoy es {{ $now.setZone('Europe/Madrid').setLocale('es').toFormat('cccc') }}, {{ $now.setZone('Europe/Madrid').toISODate() }}.\nConversación previa:\n{{ $('F. Formatear historial').first().json.historial_texto }}\nMensaje actual: {{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}",
         "needsFallback": true,
         "options": {
-          "systemMessage": "={{ $('4b. Montar prompt').first().json.system_message }}"
+          "systemMessage": "Eres el asistente virtual de La Tasqueta, restaurante de cuina catalana de muntanya en Llívia (La Cerdanya). Atiendes a los comensales por WhatsApp y tu único trabajo es gestionar reservas de mesa: consultar disponibilidad, reservar y cancelar.\n\n# Idioma (PRIORITARIO)\nResponde SIEMPRE en el idioma en que te escribe el cliente. Si escribe en catalán, respon en català. Si escribe en francés, réponds en français (Llívia recibe mucho cliente francés). Por defecto, español.\n\n# Tono\n- De tú, cercano y profesional.\n- Mensajes BREVES, como se escribe por WhatsApp. Frases cortas.\n- Sin tecnicismos. Como mucho un emoji puntual, y solo si encaja.\n- Saluda solo en el primer mensaje. Si la conversación ya está en marcha, ve al grano.\n\n# El restaurante (lo que sabes, infórmalo si te lo piden)\n- Cocina catalana de montaña y de mercado, con buena carta de vinos. Platos de la casa: canelón, croquetas, cap i pota, tiró (pato guisado), bacallà amb cigrons.\n- Horario: viernes y sábado de 13:00 a 16:30 y de 20:00 a 23:00; domingo de 13:00 a 16:30. Lunes a jueves cerrado.\n- Dirección: Travessera dels Forns 7, Llívia.\n- NO conoces los precios de la carta. Si preguntan precios o platos concretos, di que la carta es de mercado y cambia con la temporada, y que en sala se lo cuentan encantados.\n\n# Datos OBLIGATORIOS para reservar (en este orden)\n1. NÚMERO DE PERSONAS — pregúntalo SIEMPRE lo primero si no lo ha dicho (\"¿Para cuántas personas?\").\n2. DÍA, y si quiere comer o cenar (si no está claro).\n3. HORA (de los huecos que devuelva la herramienta).\n4. NOMBRE completo — antes de crear CUALQUIER reserva (\"¿A nombre de quién hago la reserva?\"). NUNCA lo inventes. Sin nombre, no llames a la herramienta de crear.\n\n# Cómo traducir personas → mesa (CRÍTICO)\nLas reservas se hacen con un tipo de mesa según las personas. Pasa SIEMPRE el nombre completo del tipo de mesa a las herramientas:\n- 1 o 2 personas → \"Mesa para 2\"\n- 3 o 4 personas → \"Mesa para 4\"\n- 5 o 6 personas → \"Mesa para 6\"\n- 7 u 8 personas → \"Mesa para 8\"\n- MÁS de 8 personas → NO reserves por aquí: dile que para grupos grandes le atienden por teléfono en el 608 187 778.\nNunca pases \"mesa\" a secas: siempre \"Mesa para 2/4/6/8\".\n\n# Cómo usar las herramientas (CRÍTICO)\nTienes herramientas para consultar disponibilidad, crear reservas, cancelar y ver las reservas del cliente. Son tu única fuente de verdad: nunca te inventes huecos, horarios ni confirmaciones.\n- CONSULTAR: cuando sepas las personas y el día, llama SIEMPRE a la herramienta de disponibilidad ANTES de responder. Ofrece solo los huecos que devuelva.\n- RESERVAR: cuando el cliente elija una hora, llama SIEMPRE a la herramienta de crear reserva. Es la ÚNICA forma de que la mesa quede registrada.\n- PROHIBIDO confirmar sin crear: NUNCA digas \"mesa reservada\" si no has llamado a la herramienta de crear en este mismo turno y te ha devuelto la confirmación.\n- CANCELAR: solo si el cliente dice EXPLÍCITAMENTE \"cancelar\" o \"anular\". Funciona en dos pasos: buscar y confirmar.\n- SUS RESERVAS: si pregunta qué reservas tiene o cuándo era su mesa, usa la herramienta de ver sus reservas.\n- CAMBIAR una reserva: cancela la actual (con su confirmación) y crea una nueva con los datos nuevos. En ese orden.\n- DESPUÉS de usar cualquier herramienta, SIEMPRE responde con el resultado: copia el texto que devuelve. Si la confirmación menciona \"0€\" o precio, OMITE el precio (las mesas no tienen precio).\n- Si el cliente menciona alergias, trona, silla de bebé o perro, añádelo entre paréntesis al nombre de la reserva (ej. \"Marta Soler (alergia gluten)\").\n\n# Fechas (CRÍTICO)\n- Pasa la fecha LIMPIA a las herramientas: solo el día tal como lo expresa el cliente.\n- Día de la semana → pasa SOLO eso: \"sábado\" (NO \"Sábado 13/06\").\n- Fecha numérica → pasa SOLO el número: \"13/06\" o \"13\".\n- NUNCA combines nombre del día y fecha numérica. NUNCA calcules tú la fecha: la herramienta la resuelve.\n- Si el cliente menciona un MES por nombre (\"12 de septiembre\"), pásalo en formato día/mes: \"12/09\". NUNCA lo reduzcas solo al día.\n\n# Qué NO eres\n- No gestionas pedidos ni la carta por chat: solo reservas de mesa.\n- No prometes mesa concreta (terraza, ventana): puedes anotar la preferencia entre paréntesis en el nombre, sin garantizarla.\n- Ante la duda, NO derives: ayuda con normalidad.\n\n# Cómo leer cada mensaje\nEl mensaje trae primero el contexto (\"Conversación previa\") y al final el mensaje nuevo (\"Mensaje actual\"). Responde SOLO al mensaje actual, usando lo previo para no repreguntar.\n\n# Estilo de actuación\nSé resolutivo: si ya tienes personas, día, hora y nombre, actúa sin rodeos."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        2160,
-        2912
+        2704,
+        2928
       ],
       "id": "b30eb0ac-d696-4d64-8bbf-45ff72061519",
       "name": "AI Agent",
@@ -218,8 +218,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        2192,
-        2576
+        2736,
+        2592
       ],
       "id": "5a68f759-2a2d-47cc-9c91-12940330c625",
       "name": "Google Gemini Chat Model",
@@ -255,8 +255,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        2608,
-        3008
+        3152,
+        3024
       ],
       "id": "eff7400a-08b6-4c48-91ca-27e4a11fc5b8",
       "name": "HTTP Request"
@@ -270,8 +270,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1712,
-        3216
+        2256,
+        3232
       ],
       "id": "486b75b1-a155-4d7d-92e4-5e4ed5346668",
       "name": "L. Leer historial",
@@ -290,8 +290,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1904,
-        2960
+        2448,
+        2976
       ],
       "id": "7db4f3be-bbd4-4a3a-8ea9-3cb03701e07f",
       "name": "F. Formatear historial"
@@ -305,8 +305,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2832,
-        3008
+        3376,
+        3024
       ],
       "id": "66ed96c0-3dac-4304-901d-64c18f482b7e",
       "name": "G. Guardar Historial",
@@ -325,18 +325,18 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "consultar",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "={{ $fromAI('servicio', 'tipo de mesa segun personas: mesa para 2, mesa para 4, mesa para 6, mesa para 8. Pasa el nombre completo, nunca solo mesa') }}",
             "fecha": "={{ $fromAI('fecha', 'el dia que pide el cliente tal cual lo diga: hoy, manana, el lunes, etc') }}",
             "nombre": "={{ $('2. Parsear Meta').first().json.nombre }}",
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
-            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
+            "profesional": "=={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -421,8 +421,58 @@
               "removed": false
             },
             {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
               "id": "profesional",
               "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -438,8 +488,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        2432,
-        3424
+        2976,
+        3440
       ],
       "id": "4f53c43e-febe-4fe9-ae4e-323988ab8cdb",
       "name": "CONSULTAR"
@@ -452,19 +502,19 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "crear",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "={{ $fromAI('servicio', 'tipo de mesa elegido: mesa para 2, mesa para 4, mesa para 6, mesa para 8. Pasa el nombre completo, nunca solo mesa') }}",
             "fecha": "={{ $fromAI('fecha', 'el dia de la cita tal cual lo diga el cliente: hoy, manana, el lunes, etc') }}",
             "hora": "={{ $fromAI('hora', 'la hora exacta que ha elegido el cliente en formato HH:MM, por ejemplo 09:30 o 10:00') }}",
             "nombre": "={{ $fromAI('nombre', 'nombre completo del cliente, tal como lo ha dicho el cliente en la conversacion', 'string') }}",
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
-            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
+            "profesional": "=={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -549,8 +599,58 @@
               "removed": false
             },
             {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
               "id": "profesional",
               "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -566,8 +666,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        2128,
-        3392
+        2672,
+        3408
       ],
       "id": "35f57235-02b1-4450-904d-9b8fe72ea162",
       "name": "CREAR"
@@ -618,8 +718,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        544,
-        3168
+        32,
+        2848
       ],
       "id": "5da6ed6c-cc89-475c-bf0f-f2947bedea27",
       "credentials": {
@@ -650,8 +750,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        944,
-        3264
+        704,
+        2496
       ],
       "id": "51ec0f76-b086-4fc9-9852-ae0ee269636a",
       "retryOnFail": true,
@@ -701,8 +801,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1136,
-        3264
+        896,
+        2496
       ],
       "id": "0d95d30c-fdf3-4987-a26a-61238a0c87e4",
       "retryOnFail": true,
@@ -724,8 +824,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1344,
-        3264
+        1104,
+        2496
       ],
       "id": "d88e990e-3db0-497e-9f58-069ba555c23c"
     },
@@ -739,8 +839,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1888,
-        4160
+        2432,
+        4176
       ],
       "id": "aba6acca-fcf8-47a2-84cb-649412113422",
       "alwaysOutputData": true,
@@ -759,8 +859,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2096,
-        4160
+        2640,
+        4176
       ],
       "id": "e054e379-e92b-4bec-ad2e-708a5606a829"
     },
@@ -772,8 +872,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        2288,
-        3824
+        2832,
+        3840
       ],
       "id": "4aea6e62-b5c6-4748-9965-ebc447b302cb",
       "credentials": {
@@ -809,8 +909,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2688,
-        4176
+        3232,
+        4192
       ],
       "id": "ce4b5ea5-a81e-4c04-bae2-4e761d59b7f7"
     },
@@ -824,8 +924,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2912,
-        4176
+        3456,
+        4192
       ],
       "id": "f45d9b79-6534-4837-a6bf-62eb30dbe529",
       "credentials": {
@@ -843,13 +943,13 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "cancelar",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'el dia de la cita que quiere cancelar el cliente: hoy, manana, el lunes, etc') }}",
             "hora": "={{ $fromAI('hora', 'la hora de la cita a cancelar en formato HH:MM si el cliente la dice, si no dejar vacio') }}",
             "nombre": "={{ $('2. Parsear Meta').first().json.nombre }}",
@@ -946,8 +1046,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        2272,
-        3440
+        2816,
+        3456
       ],
       "id": "a849ea20-dad8-4181-809b-867d4820f7dc",
       "name": "CANCELAR CITA"
@@ -961,19 +1061,19 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "crear",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "={{ $fromAI('servicio', 'tipo de mesa si aplica: mesa para 2, mesa para 4, mesa para 6, mesa para 8', 'string') }}",
             "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
             "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
             "nombre": "={{ $fromAI('nombre', 'nombre del cliente si lo dice', 'string') }}",
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
-            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
+            "profesional": "=={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1058,8 +1158,58 @@
               "removed": false
             },
             {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
               "id": "profesional",
               "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1076,8 +1226,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
       "position": [
-        2448,
-        4496
+        2912,
+        4544
       ],
       "id": "b042fe3e-2905-4936-a95d-dbd864f09093"
     },
@@ -1090,13 +1240,13 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "cancelar",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
             "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
             "confirmar": "={{ $fromAI('confirmar', 'pon si SOLO cuando el responsable ya confirmo la cancelacion', 'string') }}",
@@ -1183,6 +1333,66 @@
               "canBeUsedToMatch": true,
               "type": "string",
               "removed": false
+            },
+            {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -1193,8 +1403,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
       "position": [
-        2656,
-        4496
+        3200,
+        4512
       ],
       "id": "696ab890-7172-41ae-9f89-ed285f8d7842"
     },
@@ -1206,8 +1416,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
       "typeVersion": 1,
       "position": [
-        2368,
-        2656
+        2912,
+        2672
       ],
       "id": "301b9fd6-b6f3-473e-85ca-3d9371da95ea",
       "name": "Groq Chat Model",
@@ -1226,8 +1436,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
       "typeVersion": 1,
       "position": [
-        2496,
-        3648
+        3040,
+        3664
       ],
       "id": "b3200c3a-3a67-41db-95ee-cf69cf8d3162",
       "name": "Groq Chat Model Empresario",
@@ -1244,14 +1454,14 @@
         "text": "==Hoy es {{ $now.setZone('Europe/Madrid').setLocale('es').toFormat('cccc') }}, {{ $now.setZone('Europe/Madrid').toISODate() }}.\nConversación previa:\n{{ $('FE. Formatear historial (emp)').first().json.historial_texto }}\n\nMensaje actual: {{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}",
         "needsFallback": true,
         "options": {
-          "systemMessage": "={{ $('4b. Montar prompt').first().json.system_message }}"
+          "systemMessage": "Eres el asistente interno de La Tasqueta (Llívia). Hablas por WhatsApp con Victor, el responsable del restaurante (no con un comensal). Tu trabajo es ayudarle a gestionar las reservas de mesa.\n\n# Idioma\nResponde en el idioma en que te escriba. Si escribe en catalán, respon en català.\n\n# Tono\n- De tú, directo y eficiente. Mensajes BREVES. Vas al grano.\n\n# Mesas\nEl restaurante trabaja con tipos de mesa: Mesa para 2, Mesa para 4, Mesa para 6 y Mesa para 8. Capacidad total aproximada: 45 cubiertos.\n\n# Qué puedes hacer (eres ADMIN)\n1. VER LA AGENDA: reservas de un día o de un rango (con nombre, hora y mesa).\n2. CREAR una reserva manual (mesa según personas, día y hora; nombre del comensal).\n3. CANCELAR cualquier reserva.\n4. INFORMES: datos de ocupación y facturación cuando los pida.\n\n# Informes del negocio (datos que conoces — demo)\nCuando pregunte por ocupación, facturación o resumen, responde SOLO con estos datos. NO inventes otros:\n\nOCUPACIÓN ESTE MES (cubiertos servidos por semana):\n- Semana 1: 210 cubiertos · Semana 2: 248 cubiertos · Semana 3: 232 cubiertos · Semana 4 (en curso): 96 cubiertos\n\nFACTURACIÓN ESTE MES (ticket medio 38€):\n- Semana 1: 7.980€ · Semana 2: 9.424€ · Semana 3: 8.816€ · Total mes hasta hoy: 29.868€\n\nREGLAS DE INFORMES:\n- Formato claro (negritas con *asterisco*, saltos de línea).\n- Si pide datos que NO están aquí, di que estarán en el panel completo y ofrece los que sí tienes. NUNCA inventes cifras.\n\n# Cómo usar las herramientas (CRÍTICO)\nTienes herramientas para ver agenda, crear y cancelar. Son tu única fuente de verdad.\n- VER AGENDA: llama a la herramienta con el día. Muestra TAL CUAL lo que devuelva (omite los \"0€\" si salen).\n- CREAR: con mesa (Mesa para 2/4/6/8 según personas), día y hora, llama a la herramienta de crear.\n- CANCELAR: dos pasos: primero buscar; si pide confirmación, pregunta y solo entonces confirma.\n- CAMBIAR una reserva de día u hora: cancélala (con su confirmación) y crea una nueva. En ese orden.\n- PROHIBIDO decir \"hecho\" sin haber llamado a la herramienta y recibido la confirmación.\n- FECHAS: nunca calcules tú la fecha; pasa lo que diga tal cual.\n- Si el cliente menciona un MES por nombre (\"12 de septiembre\"), pásalo en formato día/mes: \"12/09\". NUNCA lo reduzcas solo al día.\n- DESPUÉS de usar CUALQUIER herramienta, SIEMPRE escribe el resultado. NUNCA termines en silencio.\n\n# Cómo leer cada mensaje\n\"Conversación previa\" + \"Mensaje actual\". Responde SOLO al actual.\n\n# Estilo de actuación\nResolutivo. Eres su mano derecha para la agenda."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        2320,
-        4144
+        2864,
+        4160
       ],
       "id": "91cc9881-8b74-4ed1-b0f9-339f17c30efa",
       "name": "AI Agent Empresario",
@@ -1268,13 +1478,13 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "actualizar",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'dia ACTUAL de la cita que quiere cambiar, tal cual lo diga: hoy, manana, el lunes, 03/06') }}",
             "hora": "={{ $fromAI('hora', 'hora ACTUAL de la cita que quiere cambiar en HH:MM, si la dice') }}",
             "nombre": "={{ $fromAI('nombre', 'nombre de la persona de la cita, si lo dice') }}",
@@ -1283,7 +1493,7 @@
             "fecha_nueva": "={{ $fromAI('fecha_nueva', 'NUEVA fecha a la que mover la cita, tal cual lo diga: el jueves, 12/06. Vacio si no cambia de dia') }}",
             "hora_nueva": "={{ $fromAI('hora_nueva', 'NUEVA hora en HH:MM a la que mover la cita. Vacio si no cambia de hora') }}",
             "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}",
-            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
+            "profesional": "=={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1387,8 +1597,28 @@
               "type": "string"
             },
             {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
               "id": "profesional",
               "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1404,8 +1634,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        2608,
-        3392
+        3152,
+        3408
       ],
       "id": "c456aac8-dca1-4115-8755-c3a773b4363a",
       "name": "MODIFICAR"
@@ -1418,13 +1648,13 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "actualizar",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "servicio": "=",
             "fecha": "={{ $fromAI('fecha', 'dia ACTUAL de la cita que quiere cambiar, tal cual lo diga: hoy, manana, el lunes, 03/06') }}",
             "hora": "={{ $fromAI('hora', 'hora ACTUAL de la cita que quiere cambiar en HH:MM, si la dice') }}",
@@ -1434,7 +1664,7 @@
             "fecha_nueva": "={{ $fromAI('fecha_nueva', 'NUEVA fecha a la que mover la cita, tal cual lo diga: el jueves, 12/06. Vacio si no cambia de dia') }}",
             "hora_nueva": "={{ $fromAI('hora_nueva', 'NUEVA hora en HH:MM a la que mover la cita. Vacio si no cambia de hora') }}",
             "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}",
-            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
+            "profesional": "=={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1538,8 +1768,28 @@
               "type": "string"
             },
             {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
               "id": "profesional",
               "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1555,8 +1805,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        2848,
-        4496
+        3392,
+        4512
       ],
       "id": "2abab592-4d09-494a-adec-b1c986f226b0",
       "name": "EMP modificar_reserva1"
@@ -1569,14 +1819,14 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "mis_reservas",
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}"
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1687,8 +1937,8 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2.2,
       "position": [
-        2768,
-        3392
+        3312,
+        3408
       ],
       "id": "d5eba9e5-3fe6-4efc-b5c1-43f792969e2e",
       "name": "MIS_RESERVAS"
@@ -1702,13 +1952,13 @@
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
           "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS"
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
             "fn": "agenda",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
             "fecha": "={{ $fromAI('fecha', 'dia de inicio. Para UN solo dia ponlo aqui (hoy, manana, el jueves, 01/06). Para \"esta semana\" o \"los proximos dias\" pon hoy', 'string') }}",
             "fecha_hasta": "={{ $fromAI('fecha_hasta', 'dia FINAL del rango. Vacio si solo quiere un dia. Para \"esta semana\"/\"proximos dias\" pon \"en 7 dias\". Para \"del 10 al 14\" pon el 14', 'string') }}",
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
@@ -1796,8 +2046,58 @@
               "removed": false
             },
             {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
               "id": "fecha_hasta",
               "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1814,25 +2114,25 @@
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "typeVersion": 2,
       "position": [
-        2256,
-        4512
+        2736,
+        4528
       ],
       "id": "6435434f-a228-4907-998b-e314e6d86979"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH n AS (\n  SELECT id, nombre, tipo_vertical, horario\n  FROM negocios WHERE id = '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}'\n),\nsvc AS (\n  SELECT string_agg(nombre || ' (' || duracion_minutos || ' min' ||\n           CASE WHEN precio > 0 THEN ', ' || precio::numeric(10,0) || '€' ELSE '' END || ')',\n           E'\n- ' ORDER BY nombre) AS lista\n  FROM servicios WHERE negocio_id = (SELECT id FROM n) AND activo = true\n),\nprof AS (\n  SELECT string_agg(nombre, ', ' ORDER BY nombre) AS lista\n  FROM profesionales WHERE negocio_id = (SELECT id FROM n) AND activo = true\n),\nv AS (\n  SELECT prompt_cliente, prompt_empresario\n  FROM verticales WHERE vertical = (SELECT tipo_vertical FROM n)\n),\ntpl AS (\n  SELECT CASE WHEN '{{ $('4. Cargar negocio + rol').first().json.rol }}' = 'empresario'\n    THEN COALESCE((SELECT prompt_empresario FROM v),\n         'Eres el asistente interno de {NOMBRE_NEGOCIO}. Ayudas al responsable a gestionar reservas: ver agenda, crear, cancelar. Usa SIEMPRE las herramientas; nunca digas hecho sin confirmacion. Servicios: {SERVICIOS}. Horario: {HORARIO}.')\n    ELSE COALESCE((SELECT prompt_cliente FROM v),\n         'Eres el asistente de {NOMBRE_NEGOCIO} por WhatsApp. Gestionas reservas. Responde en el idioma del cliente, breve. Servicios: {SERVICIOS}. Profesionales: {PROFESIONALES}. Horario: {HORARIO}. Usa las herramientas; nunca inventes huecos ni confirmes sin crear. Fechas: pasa lo que diga el cliente tal cual.')\n  END AS t\n)\nSELECT replace(replace(replace(replace(\n  (SELECT t FROM tpl),\n  '{NOMBRE_NEGOCIO}', COALESCE((SELECT nombre FROM n),'nuestro negocio')),\n  '{SERVICIOS}',     COALESCE((SELECT lista FROM svc), 'consultanos')),\n  '{PROFESIONALES}', COALESCE((SELECT lista FROM prof), '(sin profesionales)')),\n  '{HORARIO}',       COALESCE((SELECT horario FROM n)::text, '')) AS system_message;",
+        "query": "WITH n AS (\n  SELECT id, nombre, tipo_vertical, horario\n  FROM negocios WHERE id = '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}'\n),\nsvc AS (\n  SELECT string_agg(nombre || ' (' || duracion_minutos || ' min' ||\n           CASE WHEN precio > 0 THEN ', ' || precio::numeric(10,0) || '€' ELSE '' END || ')',\n           E'\\n- ' ORDER BY nombre) AS lista\n  FROM servicios WHERE negocio_id = (SELECT id FROM n) AND activo = true\n),\nprof AS (\n  SELECT string_agg(nombre, ', ' ORDER BY nombre) AS lista\n  FROM profesionales WHERE negocio_id = (SELECT id FROM n) AND activo = true\n),\nv AS (\n  SELECT prompt_cliente, prompt_empresario\n  FROM verticales WHERE vertical = (SELECT tipo_vertical FROM n)\n),\ntpl AS (\n  SELECT CASE WHEN '{{ $('4. Cargar negocio + rol').first().json.rol }}' = 'empresario'\n    THEN COALESCE((SELECT prompt_empresario FROM v),\n         'Eres el asistente interno de {NOMBRE_NEGOCIO}. Ayudas al responsable a gestionar reservas: ver agenda, crear, cancelar. Usa SIEMPRE las herramientas; nunca digas hecho sin confirmacion. Servicios: {SERVICIOS}. Horario: {HORARIO}.')\n    ELSE COALESCE((SELECT prompt_cliente FROM v),\n         'Eres el asistente de {NOMBRE_NEGOCIO} por WhatsApp. Gestionas reservas. Responde en el idioma del cliente, breve. Servicios: {SERVICIOS}. Profesionales: {PROFESIONALES}. Horario: {HORARIO}. Usa las herramientas; nunca inventes huecos ni confirmes sin crear. Fechas: pasa lo que diga el cliente tal cual.')\n  END AS t\n)\nSELECT replace(replace(replace(replace(\n  (SELECT t FROM tpl),\n  '{NOMBRE_NEGOCIO}', COALESCE((SELECT nombre FROM n),'nuestro negocio')),\n  '{SERVICIOS}',     COALESCE((SELECT lista FROM svc), 'consultanos')),\n  '{PROFESIONALES}', COALESCE((SELECT lista FROM prof), '(sin profesionales)')),\n  '{HORARIO}',       COALESCE((SELECT horario FROM n)::text, '')) AS system_message;",
         "options": {}
       },
-      "id": "4b00000-montar-prompt-0000-000000000001",
-      "name": "4b. Montar prompt",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "typeVersion": 2.6,
       "position": [
-        1276,
-        3464
+        1616,
+        3680
       ],
+      "id": "58f6932d-a896-488a-96e8-81b7bea7b48b",
+      "name": "4b. Montar prompt",
       "credentials": {
         "postgres": {
           "id": "UZezTWtSmrQ7w46T",
@@ -1846,13 +2146,13 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose",
+            "typeValidation": "strict",
             "version": 3
           },
           "conditions": [
             {
-              "id": "botactivo-1",
-              "leftValue": "={{ $('4. Cargar negocio + rol').first().json.rol === 'empresario' || $('4. Cargar negocio + rol').first().json.agente_activo === true }}",
+              "id": "d7987058-7746-4339-8449-5f425103f788",
+              "leftValue": "=={{ $('4. Cargar negocio + rol').first().json.rol === 'empresario' || $('4. Cargar negocio + rol').first().json.agente_activo === true }}",
               "rightValue": "",
               "operator": {
                 "type": "boolean",
@@ -1863,17 +2163,16 @@
           ],
           "combinator": "and"
         },
-        "looseTypeValidation": true,
         "options": {}
       },
-      "id": "45000000-bot-activo-0000-000000000001",
-      "name": "4.5 ¿Bot activo?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1186,
-        3664
-      ]
+        1280,
+        3696
+      ],
+      "id": "05d3e42d-8321-4898-b53b-210f50b171ab",
+      "name": "4.5 ¿Bot activo?"
     },
     {
       "parameters": {
@@ -1894,23 +2193,22 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": {{ JSON.stringify($('4. Cargar negocio + rol').first().json.mensaje_apagado) }},\n  \"message_type\": \"outgoing\"\n}",
+        "jsonBody": "={\n       \"content\": {{ JSON.stringify($('4. Cargar negocio + rol').first().json.mensaje_apagado) }},\n       \"message_type\": \"outgoing\"\n     }",
         "options": {}
       },
-      "id": "c0000000-cortesia-off-0000-000000000001",
-      "name": "Cortesia bot off",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1386,
-        3884
+        1296,
+        3920
       ],
-      "onError": "continueRegularOutput"
+      "id": "658bf12e-ce0a-453f-b4ba-b713987d418c",
+      "name": "Cortesia bot off"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/toggle_status",
+        "url": "==https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/toggle_status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -1926,37 +2224,39 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{ \"status\": \"open\" }",
+        "jsonBody": "={ \"status\": \"open\" }",
         "options": {}
       },
-      "id": "h0000000-handoff-off-0000-000000000001",
-      "name": "Handoff (bot off)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1616,
-        3884
+        1568,
+        3920
       ],
-      "onError": "continueRegularOutput"
+      "id": "2e24827a-c39a-4430-aa66-6ef174cdca67",
+      "name": "Handoff (bot off)"
     },
     {
       "parameters": {
         "name": "toggle_bot",
-        "description": "Activa, apaga o consulta el asistente automatico que responde a los clientes. accion='desactivar' apaga, 'activar' enciende, 'estado' consulta. Solo el responsable.",
+        "description": "Activa o desactiva el asistente automatico, o consulta su estado. Usala cuando el responsable diga apaga el bot, activa el bot, o pregunte si esta activo.",
         "workflowId": {
           "__rl": true,
           "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultName": "TOOLS MOTOR DE RESERVAS",
-          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES"
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
           "value": {
+            "negocio_id": "=={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
+            "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
+            "confirmar": "={{ $fromAI('confirmar', 'pon si SOLO cuando el responsable ya confirmo la cancelacion', 'string') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
             "fn": "toggle_bot",
-            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
-            "accion": "={{ $fromAI('accion', \"'activar', 'desactivar' o 'estado'\", 'string') }}",
-            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+            "accion": "=={{ $fromAI('accion', \"'activar', 'desactivar' o 'estado'\", 'string') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1981,8 +2281,48 @@
               "removed": false
             },
             {
-              "id": "accion",
-              "displayName": "accion",
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1999,20 +2339,80 @@
               "canBeUsedToMatch": true,
               "type": "string",
               "removed": false
+            },
+            {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         }
       },
-      "id": "t0000000-emp-togglebot-000000000001",
       "name": "EMP toggle_bot",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
-      "typeVersion": 2.2,
+      "typeVersion": 2,
       "position": [
-        2520,
-        4524
-      ]
+        3072,
+        4608
+      ],
+      "id": "9bb29d4c-f32e-441f-bd42-4fde063a06b9"
     }
   ],
   "connections": {
@@ -2422,11 +2822,6 @@
         ]
       ]
     },
-    "Handoff (bot off)": {
-      "main": [
-        []
-      ]
-    },
     "EMP toggle_bot": {
       "ai_tool": [
         [
@@ -2448,8 +2843,9 @@
     "errorWorkflow": "aaaOcDDJ3wrrPHaj",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "509d680d-0c2d-428e-a483-5a5843f079e8",
+  "versionId": "d292849b-7ff3-47fc-b65f-c21360a6a139",
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "0c633d92281d3e60391559b2314488b80dd3e4438762e47aaa5a33925c00f2e0"
   },
   "id": "EA3TJVZb03f1OugA",
