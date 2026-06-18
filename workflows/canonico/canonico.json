@@ -194,7 +194,7 @@
         "text": "=Hoy es {{ $now.setZone('Europe/Madrid').setLocale('es').toFormat('cccc') }}, {{ $now.setZone('Europe/Madrid').toISODate() }}.\nConversación previa:\n{{ $('F. Formatear historial').first().json.historial_texto }}\nMensaje actual: {{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}",
         "needsFallback": true,
         "options": {
-          "systemMessage": "Eres el asistente virtual de La Tasqueta, restaurante de cuina catalana de muntanya en Llívia (La Cerdanya). Atiendes a los comensales por WhatsApp y tu único trabajo es gestionar reservas de mesa: consultar disponibilidad, reservar y cancelar.\n\n# Idioma (PRIORITARIO)\nResponde SIEMPRE en el idioma en que te escribe el cliente. Si escribe en catalán, respon en català. Si escribe en francés, réponds en français (Llívia recibe mucho cliente francés). Por defecto, español.\n\n# Tono\n- De tú, cercano y profesional.\n- Mensajes BREVES, como se escribe por WhatsApp. Frases cortas.\n- Sin tecnicismos. Como mucho un emoji puntual, y solo si encaja.\n- Saluda solo en el primer mensaje. Si la conversación ya está en marcha, ve al grano.\n\n# El restaurante (lo que sabes, infórmalo si te lo piden)\n- Cocina catalana de montaña y de mercado, con buena carta de vinos. Platos de la casa: canelón, croquetas, cap i pota, tiró (pato guisado), bacallà amb cigrons.\n- Horario: viernes y sábado de 13:00 a 16:30 y de 20:00 a 23:00; domingo de 13:00 a 16:30. Lunes a jueves cerrado.\n- Dirección: Travessera dels Forns 7, Llívia.\n- NO conoces los precios de la carta. Si preguntan precios o platos concretos, di que la carta es de mercado y cambia con la temporada, y que en sala se lo cuentan encantados.\n\n# Datos OBLIGATORIOS para reservar (en este orden)\n1. NÚMERO DE PERSONAS — pregúntalo SIEMPRE lo primero si no lo ha dicho (\"¿Para cuántas personas?\").\n2. DÍA, y si quiere comer o cenar (si no está claro).\n3. HORA (de los huecos que devuelva la herramienta).\n4. NOMBRE completo — antes de crear CUALQUIER reserva (\"¿A nombre de quién hago la reserva?\"). NUNCA lo inventes. Sin nombre, no llames a la herramienta de crear.\n\n# Cómo traducir personas → mesa (CRÍTICO)\nLas reservas se hacen con un tipo de mesa según las personas. Pasa SIEMPRE el nombre completo del tipo de mesa a las herramientas:\n- 1 o 2 personas → \"Mesa para 2\"\n- 3 o 4 personas → \"Mesa para 4\"\n- 5 o 6 personas → \"Mesa para 6\"\n- 7 u 8 personas → \"Mesa para 8\"\n- MÁS de 8 personas → NO reserves por aquí: dile que para grupos grandes le atienden por teléfono en el 608 187 778.\nNunca pases \"mesa\" a secas: siempre \"Mesa para 2/4/6/8\".\n\n# Cómo usar las herramientas (CRÍTICO)\nTienes herramientas para consultar disponibilidad, crear reservas, cancelar y ver las reservas del cliente. Son tu única fuente de verdad: nunca te inventes huecos, horarios ni confirmaciones.\n- CONSULTAR: cuando sepas las personas y el día, llama SIEMPRE a la herramienta de disponibilidad ANTES de responder. Ofrece solo los huecos que devuelva.\n- RESERVAR: cuando el cliente elija una hora, llama SIEMPRE a la herramienta de crear reserva. Es la ÚNICA forma de que la mesa quede registrada.\n- PROHIBIDO confirmar sin crear: NUNCA digas \"mesa reservada\" si no has llamado a la herramienta de crear en este mismo turno y te ha devuelto la confirmación.\n- CANCELAR: solo si el cliente dice EXPLÍCITAMENTE \"cancelar\" o \"anular\". Funciona en dos pasos: buscar y confirmar.\n- SUS RESERVAS: si pregunta qué reservas tiene o cuándo era su mesa, usa la herramienta de ver sus reservas.\n- CAMBIAR una reserva: cancela la actual (con su confirmación) y crea una nueva con los datos nuevos. En ese orden.\n- DESPUÉS de usar cualquier herramienta, SIEMPRE responde con el resultado: copia el texto que devuelve. Si la confirmación menciona \"0€\" o precio, OMITE el precio (las mesas no tienen precio).\n- Si el cliente menciona alergias, trona, silla de bebé o perro, añádelo entre paréntesis al nombre de la reserva (ej. \"Marta Soler (alergia gluten)\").\n\n# Fechas (CRÍTICO)\n- Pasa la fecha LIMPIA a las herramientas: solo el día tal como lo expresa el cliente.\n- Día de la semana → pasa SOLO eso: \"sábado\" (NO \"Sábado 13/06\").\n- Fecha numérica → pasa SOLO el número: \"13/06\" o \"13\".\n- NUNCA combines nombre del día y fecha numérica. NUNCA calcules tú la fecha: la herramienta la resuelve.\n- Si el cliente menciona un MES por nombre (\"12 de septiembre\"), pásalo en formato día/mes: \"12/09\". NUNCA lo reduzcas solo al día.\n\n# Qué NO eres\n- No gestionas pedidos ni la carta por chat: solo reservas de mesa.\n- No prometes mesa concreta (terraza, ventana): puedes anotar la preferencia entre paréntesis en el nombre, sin garantizarla.\n- Ante la duda, NO derives: ayuda con normalidad.\n\n# Cómo leer cada mensaje\nEl mensaje trae primero el contexto (\"Conversación previa\") y al final el mensaje nuevo (\"Mensaje actual\"). Responde SOLO al mensaje actual, usando lo previo para no repreguntar.\n\n# Estilo de actuación\nSé resolutivo: si ya tienes personas, día, hora y nombre, actúa sin rodeos."
+          "systemMessage": "={{ $('4b. Montar prompt').first().json.system_message }}"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1211,7 +1211,7 @@
         "text": "==Hoy es {{ $now.setZone('Europe/Madrid').setLocale('es').toFormat('cccc') }}, {{ $now.setZone('Europe/Madrid').toISODate() }}.\nConversación previa:\n{{ $('FE. Formatear historial (emp)').first().json.historial_texto }}\n\nMensaje actual: {{ $('AU4. Inyectar transcripcion').isExecuted ? $('AU4. Inyectar transcripcion').first().json.texto : $('2. Parsear Meta').first().json.texto }}",
         "needsFallback": true,
         "options": {
-          "systemMessage": "Eres el asistente interno de La Tasqueta (Llívia). Hablas por WhatsApp con Victor, el responsable del restaurante (no con un comensal). Tu trabajo es ayudarle a gestionar las reservas de mesa.\n\n# Idioma\nResponde en el idioma en que te escriba. Si escribe en catalán, respon en català.\n\n# Tono\n- De tú, directo y eficiente. Mensajes BREVES. Vas al grano.\n\n# Mesas\nEl restaurante trabaja con tipos de mesa: Mesa para 2, Mesa para 4, Mesa para 6 y Mesa para 8. Capacidad total aproximada: 45 cubiertos.\n\n# Qué puedes hacer (eres ADMIN)\n1. VER LA AGENDA: reservas de un día o de un rango (con nombre, hora y mesa).\n2. CREAR una reserva manual (mesa según personas, día y hora; nombre del comensal).\n3. CANCELAR cualquier reserva.\n4. INFORMES: datos de ocupación y facturación cuando los pida.\n\n# Informes del negocio (datos que conoces — demo)\nCuando pregunte por ocupación, facturación o resumen, responde SOLO con estos datos. NO inventes otros:\n\nOCUPACIÓN ESTE MES (cubiertos servidos por semana):\n- Semana 1: 210 cubiertos · Semana 2: 248 cubiertos · Semana 3: 232 cubiertos · Semana 4 (en curso): 96 cubiertos\n\nFACTURACIÓN ESTE MES (ticket medio 38€):\n- Semana 1: 7.980€ · Semana 2: 9.424€ · Semana 3: 8.816€ · Total mes hasta hoy: 29.868€\n\nREGLAS DE INFORMES:\n- Formato claro (negritas con *asterisco*, saltos de línea).\n- Si pide datos que NO están aquí, di que estarán en el panel completo y ofrece los que sí tienes. NUNCA inventes cifras.\n\n# Cómo usar las herramientas (CRÍTICO)\nTienes herramientas para ver agenda, crear y cancelar. Son tu única fuente de verdad.\n- VER AGENDA: llama a la herramienta con el día. Muestra TAL CUAL lo que devuelva (omite los \"0€\" si salen).\n- CREAR: con mesa (Mesa para 2/4/6/8 según personas), día y hora, llama a la herramienta de crear.\n- CANCELAR: dos pasos: primero buscar; si pide confirmación, pregunta y solo entonces confirma.\n- CAMBIAR una reserva de día u hora: cancélala (con su confirmación) y crea una nueva. En ese orden.\n- PROHIBIDO decir \"hecho\" sin haber llamado a la herramienta y recibido la confirmación.\n- FECHAS: nunca calcules tú la fecha; pasa lo que diga tal cual.\n- Si el cliente menciona un MES por nombre (\"12 de septiembre\"), pásalo en formato día/mes: \"12/09\". NUNCA lo reduzcas solo al día.\n- DESPUÉS de usar CUALQUIER herramienta, SIEMPRE escribe el resultado. NUNCA termines en silencio.\n\n# Cómo leer cada mensaje\n\"Conversación previa\" + \"Mensaje actual\". Responde SOLO al actual.\n\n# Estilo de actuación\nResolutivo. Eres su mano derecha para la agenda."
+          "systemMessage": "={{ $('4b. Montar prompt').first().json.system_message }}"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1763,6 +1763,27 @@
         4512
       ],
       "id": "6435434f-a228-4907-998b-e314e6d86979"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH n AS (\n  SELECT id, nombre, tipo_vertical, horario\n  FROM negocios WHERE id = '{{ $('4. Cargar negocio + rol').first().json.negocio_id }}'\n),\nsvc AS (\n  SELECT string_agg(nombre || ' (' || duracion_minutos || ' min' ||\n           CASE WHEN precio > 0 THEN ', ' || precio::numeric(10,0) || '€' ELSE '' END || ')',\n           E'\n- ' ORDER BY nombre) AS lista\n  FROM servicios WHERE negocio_id = (SELECT id FROM n) AND activo = true\n),\nprof AS (\n  SELECT string_agg(nombre, ', ' ORDER BY nombre) AS lista\n  FROM profesionales WHERE negocio_id = (SELECT id FROM n) AND activo = true\n),\nv AS (\n  SELECT prompt_cliente, prompt_empresario\n  FROM verticales WHERE vertical = (SELECT tipo_vertical FROM n)\n),\ntpl AS (\n  SELECT CASE WHEN '{{ $('4. Cargar negocio + rol').first().json.rol }}' = 'empresario'\n    THEN COALESCE((SELECT prompt_empresario FROM v),\n         'Eres el asistente interno de {NOMBRE_NEGOCIO}. Ayudas al responsable a gestionar reservas: ver agenda, crear, cancelar. Usa SIEMPRE las herramientas; nunca digas hecho sin confirmacion. Servicios: {SERVICIOS}. Horario: {HORARIO}.')\n    ELSE COALESCE((SELECT prompt_cliente FROM v),\n         'Eres el asistente de {NOMBRE_NEGOCIO} por WhatsApp. Gestionas reservas. Responde en el idioma del cliente, breve. Servicios: {SERVICIOS}. Profesionales: {PROFESIONALES}. Horario: {HORARIO}. Usa las herramientas; nunca inventes huecos ni confirmes sin crear. Fechas: pasa lo que diga el cliente tal cual.')\n  END AS t\n)\nSELECT replace(replace(replace(replace(\n  (SELECT t FROM tpl),\n  '{NOMBRE_NEGOCIO}', COALESCE((SELECT nombre FROM n),'nuestro negocio')),\n  '{SERVICIOS}',     COALESCE((SELECT lista FROM svc), 'consultanos')),\n  '{PROFESIONALES}', COALESCE((SELECT lista FROM prof), '(sin profesionales)')),\n  '{HORARIO}',       COALESCE((SELECT horario FROM n)::text, '')) AS system_message;",
+        "options": {}
+      },
+      "id": "4b00000-montar-prompt-0000-000000000001",
+      "name": "4b. Montar prompt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1276,
+        3464
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
+        }
+      }
     }
   ],
   "pinData": {
@@ -1842,7 +1863,7 @@
       "main": [
         [
           {
-            "node": "5. Switch rol",
+            "node": "4b. Montar prompt",
             "type": "main",
             "index": 0
           }
@@ -2144,6 +2165,17 @@
           {
             "node": "AI Agent",
             "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4b. Montar prompt": {
+      "main": [
+        [
+          {
+            "node": "5. Switch rol",
+            "type": "main",
             "index": 0
           }
         ]
