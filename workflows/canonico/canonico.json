@@ -2015,23 +2015,6 @@
       ]
     }
   ],
-  "pinData": {
-    "2. Parsear Meta": [
-      {
-        "json": {
-          "from": "34600000001",
-          "message_id": "test-verif-001",
-          "tipo": "text",
-          "texto": "hola",
-          "nombre": "Cliente Prueba",
-          "conversation_id": "1",
-          "account_id": "7",
-          "inbox_id": "1",
-          "audio_url": ""
-        }
-      }
-    ]
-  },
   "connections": {
     "0a. Verif GET": {
       "main": [
