@@ -465,21 +465,6 @@
       }
     }
   ],
-  "pinData": {
-    "Trigger (desde agente)": [
-      {
-        "json": {
-          "fn": "consultar",
-          "negocio_id": "40000000-0000-0000-0000-000000000004",
-          "servicio": "botox",
-          "fecha": "mañana",
-          "profesional": "Marc",
-          "from_number": "34600000401",
-          "nombre": "Prueba"
-        }
-      }
-    ]
-  },
   "connections": {
     "Trigger (desde agente)": {
       "main": [
