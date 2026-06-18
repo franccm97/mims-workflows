@@ -97,8 +97,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -118,8 +118,8 @@
       ],
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -278,8 +278,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -312,8 +312,8 @@
       "name": "G. Guardar Historial",
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -322,9 +322,9 @@
         "description": "# Reglas de oro\n- FECHAS: nunca calcules tú una fecha. Pasa lo que diga el cliente tal cual (\"hoy\", \"mañana\", \"el sábado\") a las herramientas.\n- OBLIGATORIO: cuando el cliente quiera mesa y ya sepas las personas y el día, DEBES llamar a esta herramienta de consultar disponibilidad ANTES de responder. Nunca ofrezcas horas por tu cuenta: ofrece SOLO los huecos que devuelva.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -438,9 +438,9 @@
         "description": "USA ESTA HERRAMIENTA SIEMPRE que el cliente confirme una hora para reservar mesa. Es OBLIGATORIA para crear la reserva. NUNCA confirmes una mesa al cliente sin haber usado esta herramienta primero. Devuelve la confirmación real de la reserva creada.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -724,8 +724,8 @@
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -808,8 +808,8 @@
       "id": "f45d9b79-6534-4837-a6bf-62eb30dbe529",
       "credentials": {
         "postgres": {
-          "id": "EKUTqGfh0PExfgFw",
-          "name": "Postgres mims_app"
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
     },
@@ -818,9 +818,9 @@
         "description": "=Cancela una reserva existente. Funciona en dos pasos: la PRIMERA vez llámala con confirmar vacío para buscar la reserva; te dirá si la encontró. Si te pide confirmación, pregunta al cliente si está seguro, y solo entonces vuelve a llamarla con confirmar = \"si\". Nunca canceles sin haber preguntado al cliente.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -936,9 +936,9 @@
         "description": "Crea una reserva de mesa en el sistema. Usala cuando el responsable quiera meter una reserva manualmente y tengas el tipo de mesa, dia y hora.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -1054,9 +1054,9 @@
         "description": "Cancela una reserva existente del negocio. Dos pasos: primero búscala con confirmar vacío; si pide confirmación, pregunta al responsable y solo entonces vuelve a llamarla con confirmar='si'.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -1232,9 +1232,9 @@
         "description": "Modifica/cambia una cita YA existente: moverla de día u hora, o cambiar el tipo de sesión. Identifica la cita actual por su día (y hora si se sabe) e indica a qué cambiarla.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -1371,9 +1371,9 @@
         "description": "Modifica/cambia una cita existente del negocio: moverla de día u hora o cambiar el servicio. El dueño puede cambiar cualquier cita. Identifica la cita actual por día (y hora) e indica a qué cambiarla.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -1511,9 +1511,9 @@
         "description": "Muestra al cliente SUS próximas reservas (las que tiene a su nombre/teléfono). Úsala cuando pregunte qué reservas tiene, cuándo era su mesa, o cuando no sepa cuál quiere cancelar.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
@@ -1644,9 +1644,9 @@
         "description": "Muestra las reservas del restaurante de un dia concreto O de un rango de dias (con nombre, hora y mesa). Usala cuando el responsable pregunte que tiene un dia, su agenda, cuantas mesas hay, o por un rango como 'esta semana' o 'los proximos dias'.",
         "workflowId": {
           "__rl": true,
-          "value": "nzjWscGj9DoXKIzG",
+          "value": "6UgauiTycOIrC7ES",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nzjWscGj9DoXKIzG",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES",
           "cachedResultName": "TOOLS MOTOR DE RESERVAS"
         },
         "workflowInputs": {
