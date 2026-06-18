@@ -76,9 +76,22 @@ Esperado: las columnas existen y la tabla `verticales` tiene las 8 filas.
 
 ---
 
-## (b) PASO 1 — Motor DEV: rama `toggle_bot` (fragmentos LISTOS para cablear)
+## (b) PASO 1 — Motor DEV: rama `toggle_bot`
 
-Esto lo cableas TÚ en el Motor DEV (`6UgauiTycOIrC7ES`) en la UI de n8n. Son 4 cambios.
+> ✅ **HECHO.** Franc lo cableó y probó en n8n DEV (4 tests verde). El export real es la
+> fuente de verdad y ya está en `workflows/motor/motor.json` (14 nodos, scrub OK, sin
+> pinData). Esta sección queda como **referencia** del cableado (por si hay que rehacerlo).
+
+Son 5 cambios sobre el Motor DEV (`6UgauiTycOIrC7ES`), a mano en la UI (NO botón 🔄).
+
+### 1.0 ⚠️ Nodo "1. Resolver fecha" — propaga `accion` (BUG real)
+El nodo reconstruye su salida campo a campo. Añade al objeto del `return`:
+```js
+  accion:      d.accion ?? '',
+```
+Sin esto, `accion` llega VACÍO a `3g` → el UPDATE nunca corre (cae siempre a ESTADO).
+Es el bug que salió al cablear. (Regresión que lo caza: `mims-qa` →
+`scenarios/regression/resolver_propaga_accion.test.ts`.)
 
 ### 1.1 Trigger "Trigger (desde agente)" — añade el input `accion`
 En **Workflow Inputs**, añade a la lista (a mano, NO uses el botón 🔄):
