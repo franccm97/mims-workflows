@@ -335,7 +335,8 @@
             "servicio": "={{ $fromAI('servicio', 'tipo de mesa segun personas: mesa para 2, mesa para 4, mesa para 6, mesa para 8. Pasa el nombre completo, nunca solo mesa') }}",
             "fecha": "={{ $fromAI('fecha', 'el dia que pide el cliente tal cual lo diga: hoy, manana, el lunes, etc') }}",
             "nombre": "={{ $('2. Parsear Meta').first().json.nombre }}",
-            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
+            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -412,6 +413,16 @@
             {
               "id": "from_number",
               "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -452,7 +463,8 @@
             "fecha": "={{ $fromAI('fecha', 'el dia de la cita tal cual lo diga el cliente: hoy, manana, el lunes, etc') }}",
             "hora": "={{ $fromAI('hora', 'la hora exacta que ha elegido el cliente en formato HH:MM, por ejemplo 09:30 o 10:00') }}",
             "nombre": "={{ $fromAI('nombre', 'nombre completo del cliente, tal como lo ha dicho el cliente en la conversacion', 'string') }}",
-            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
+            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -529,6 +541,16 @@
             {
               "id": "from_number",
               "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -950,7 +972,8 @@
             "fecha": "={{ $fromAI('fecha', 'el dia tal cual lo diga el responsable: hoy, manana, el lunes, 01/06', 'string') }}",
             "hora": "={{ $fromAI('hora', 'la hora en formato HH:MM si aplica', 'string') }}",
             "nombre": "={{ $fromAI('nombre', 'nombre del cliente si lo dice', 'string') }}",
-            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
+            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1027,6 +1050,16 @@
             {
               "id": "from_number",
               "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1249,7 +1282,8 @@
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
             "fecha_nueva": "={{ $fromAI('fecha_nueva', 'NUEVA fecha a la que mover la cita, tal cual lo diga: el jueves, 12/06. Vacio si no cambia de dia') }}",
             "hora_nueva": "={{ $fromAI('hora_nueva', 'NUEVA hora en HH:MM a la que mover la cita. Vacio si no cambia de hora') }}",
-            "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}"
+            "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}",
+            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1351,6 +1385,16 @@
               "display": true,
               "canBeUsedToMatch": true,
               "type": "string"
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -1389,7 +1433,8 @@
             "from_number": "={{ $('2. Parsear Meta').first().json.from }}",
             "fecha_nueva": "={{ $fromAI('fecha_nueva', 'NUEVA fecha a la que mover la cita, tal cual lo diga: el jueves, 12/06. Vacio si no cambia de dia') }}",
             "hora_nueva": "={{ $fromAI('hora_nueva', 'NUEVA hora en HH:MM a la que mover la cita. Vacio si no cambia de hora') }}",
-            "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}"
+            "servicio_nuevo": "={{ $fromAI('servicio_nuevo', 'NUEVO servicio si quiere cambiar de tipo (mismas opciones que al reservar). Vacio si no cambia') }}",
+            "profesional": "={{ $fromAI('profesional', 'profesional con quien quiere la cita, si lo menciona; vacio si le da igual') }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -1491,6 +1536,16 @@
               "display": true,
               "canBeUsedToMatch": true,
               "type": "string"
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
