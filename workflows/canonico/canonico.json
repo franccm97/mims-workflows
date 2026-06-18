@@ -105,7 +105,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  id AS negocio_id,\n  CASE WHEN dueno_telefono = '{{ $('2. Parsear Meta').first().json.from }}'\n       THEN 'empresario' ELSE 'cliente' END AS rol,\n  horario,\n  zona_horaria,\n  dueno_telefono\nFROM negocios\nWHERE chatwoot_account_id = '{{ $('2. Parsear Meta').first().json.account_id }}'\n  AND activo = true\nLIMIT 1;",
+        "query": "SELECT\n  id AS negocio_id,\n  CASE WHEN dueno_telefono = '{{ $('2. Parsear Meta').first().json.from }}'\n       THEN 'empresario' ELSE 'cliente' END AS rol,\n  horario,\n  zona_horaria,\n  agente_activo,\n  COALESCE(NULLIF(mensaje_bot_apagado,''),\n    'Ahora mismo no podemos atenderte por aqui automaticamente. Te leemos y te respondemos en cuanto podamos. Gracias!')\n    AS mensaje_apagado,\n  dueno_telefono\nFROM negocios\nWHERE chatwoot_account_id = '{{ $('2. Parsear Meta').first().json.account_id }}'\n  AND activo = true\nLIMIT 1;",
         "options": {}
       },
       "id": "ce3360bb-868e-429e-951f-dc25b3824041",
@@ -138,7 +138,7 @@
                 "conditions": [
                   {
                     "id": "cond-cliente",
-                    "leftValue": "={{ $json.rol }}",
+                    "leftValue": "={{ $('4. Cargar negocio + rol').first().json.rol }}",
                     "rightValue": "cliente",
                     "operator": {
                       "type": "string",
@@ -162,7 +162,7 @@
                 "conditions": [
                   {
                     "id": "cond-empresario",
-                    "leftValue": "={{ $json.rol }}",
+                    "leftValue": "={{ $('4. Cargar negocio + rol').first().json.rol }}",
                     "rightValue": "empresario",
                     "operator": {
                       "type": "string",
@@ -1839,6 +1839,180 @@
           "name": "DB DEV"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "botactivo-1",
+              "leftValue": "={{ $('4. Cargar negocio + rol').first().json.rol === 'empresario' || $('4. Cargar negocio + rol').first().json.agente_activo === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "45000000-bot-activo-0000-000000000001",
+      "name": "4.5 ¿Bot activo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1186,
+        3664
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "api_access_token",
+              "value": "={{ $env.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": {{ JSON.stringify($('4. Cargar negocio + rol').first().json.mensaje_apagado) }},\n  \"message_type\": \"outgoing\"\n}",
+        "options": {}
+      },
+      "id": "c0000000-cortesia-off-0000-000000000001",
+      "name": "Cortesia bot off",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1386,
+        3884
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/toggle_status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "api_access_token",
+              "value": "={{ $env.CHATWOOT_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"status\": \"open\" }",
+        "options": {}
+      },
+      "id": "h0000000-handoff-off-0000-000000000001",
+      "name": "Handoff (bot off)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1616,
+        3884
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "name": "toggle_bot",
+        "description": "Activa, apaga o consulta el asistente automatico que responde a los clientes. accion='desactivar' apaga, 'activar' enciende, 'estado' consulta. Solo el responsable.",
+        "workflowId": {
+          "__rl": true,
+          "value": "6UgauiTycOIrC7ES",
+          "mode": "list",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS",
+          "cachedResultUrl": "/workflow/6UgauiTycOIrC7ES"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "toggle_bot",
+            "negocio_id": "={{ $('4. Cargar negocio + rol').first().json.negocio_id }}",
+            "accion": "={{ $fromAI('accion', \"'activar', 'desactivar' o 'estado'\", 'string') }}",
+            "from_number": "={{ $('2. Parsear Meta').first().json.from }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "t0000000-emp-togglebot-000000000001",
+      "name": "EMP toggle_bot",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        2520,
+        4524
+      ]
     }
   ],
   "pinData": {
@@ -1918,7 +2092,7 @@
       "main": [
         [
           {
-            "node": "4b. Montar prompt",
+            "node": "4.5 ¿Bot activo?",
             "type": "main",
             "index": 0
           }
@@ -2231,6 +2405,51 @@
           {
             "node": "5. Switch rol",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4.5 ¿Bot activo?": {
+      "main": [
+        [
+          {
+            "node": "4b. Montar prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cortesia bot off",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cortesia bot off": {
+      "main": [
+        [
+          {
+            "node": "Handoff (bot off)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handoff (bot off)": {
+      "main": [
+        []
+      ]
+    },
+    "EMP toggle_bot": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Empresario",
+            "type": "ai_tool",
             "index": 0
           }
         ]
