@@ -67,3 +67,4 @@ npm run migrate
 | `001_init.sql` | Baseline: schema de prod completo (idempotente) + `negocios.agente_activo` |
 | `002_config_vertical.sql` | `negocios.capacidad_simultanea` (def 1) + `negocios.corte_franja` (def 14) |
 | `003_profesionales_seed_estetica.sql` | Seed sintético Clínica Estética Aura: 5 servicios, 3 profesionales, `profesional_servicios` y 2 reservas con `profesional_id` (banco de pruebas del modo profesional) |
+| `004_seed_verticales_dev.sql` | Seed por vertical (restaurante/peluquería/clínica/fisio/taller/gimnasio/pádel) con palancas (`capacidad_simultanea`/`corte_franja`) + servicios + profesionales/pistas + reservas. Ids `a0000000-…`, idempotente |
