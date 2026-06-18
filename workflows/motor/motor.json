@@ -1,5 +1,5 @@
 {
-  "name": "TOOLS MOTOR DE RESERVAS",
+  "name": "TOOLS MOTOR DE RESERVAS DEV",
   "nodes": [
     {
       "parameters": {
@@ -43,6 +43,9 @@
             },
             {
               "name": "profesional"
+            },
+            {
+              "name": "accion"
             }
           ]
         }
@@ -58,7 +61,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n// ===== Resolver fecha de forma determinista (mismo motor que voz) =====\nfunction resolverFecha(input) {\n  if (!input) return '';\n let s = String(input).trim().toLowerCase();\n  const numLetra = {una:1,uno:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10};\n  for (const [pal, n] of Object.entries(numLetra)) {\n    s = s.replace(new RegExp('\\\\b' + pal + '\\\\b', 'g'), String(n));\n  }\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\n  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());\n  const fmt = (x) => {\n    const y = x.getFullYear();\n    const m = String(x.getMonth() + 1).padStart(2, '0');\n    const dd = String(x.getDate()).padStart(2, '0');\n    return `${y}-${m}-${dd}`;\n  };\n  let m = s.match(/\\b(\\d{1,2})[\\/\\-](\\d{1,2})(?:[\\/\\-](\\d{2,4}))?\\b/);\n  if (m) {\n    const dd = parseInt(m[1], 10);\n    const mm = parseInt(m[2], 10);\n    let yyyy = m[3] ? parseInt(m[3], 10) : hoy.getFullYear();\n    if (yyyy < 100) yyyy += 2000;\n    let cand = new Date(yyyy, mm - 1, dd);\n    if (!m[3] && cand < hoy) cand = new Date(yyyy + 1, mm - 1, dd);\n    if (!isNaN(cand)) return fmt(cand);\n  }\n  if (s.includes('hoy')) return fmt(hoy);\n  if (s.includes('pasado manana') || s.includes('pasado mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 2); return fmt(x);\n  }\n  if (s.includes('manana') || s.includes('mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 1); return fmt(x);\n  }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*d[ií]as?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10)); return fmt(x); }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*semanas?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10) * 7); return fmt(x); }\n  if (s.includes('semana que viene') || s.includes('proxima semana') || s.includes('próxima semana') || s.includes('semana proxima') || s.includes('semana próxima')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 7); return fmt(x);\n  }\n  const dias = {'domingo':0,'lunes':1,'martes':2,'miercoles':3,'miércoles':3,'jueves':4,'viernes':5,'sabado':6,'sábado':6};\n  for (const [nombre, num] of Object.entries(dias)) {\n    if (s.includes(nombre)) {\n      const x = new Date(hoy);\n      let diff = (num - x.getDay() + 7) % 7;\n      if (diff === 0) diff = 7;\n      x.setDate(x.getDate() + diff);\n      return fmt(x);\n    }\n  }\n  // ===== NUEVO: numero de dia del mes suelto: \"12\", \"el 12\", \"el dia 20\", \"el 12 de este mes\" =====\n  m = s.match(/\\b(\\d{1,2})\\b/);\n  if (m) {\n    const dia = parseInt(m[1], 10);\n    if (dia >= 1 && dia <= 31) {\n      let cand = new Date(hoy.getFullYear(), hoy.getMonth(), dia);\n      if (cand < hoy) cand = new Date(hoy.getFullYear(), hoy.getMonth() + 1, dia);\n      if (!isNaN(cand) && cand.getDate() === dia) return fmt(cand);\n    }\n  }\n  return '';\n}\nconst fechaResuelta = resolverFecha(d.fecha);\nconst fechaNuevaResuelta = resolverFecha(d.fecha_nueva);\nconst fechaHastaResuelta = resolverFecha(d.fecha_hasta);\nreturn [{ json: {\n  fn:          d.fn ?? '',\n  negocio_id:  d.negocio_id ?? '11111111-1111-1111-1111-111111111111',\n  servicio:    d.servicio ?? '',\n  fecha:       fechaResuelta,\n  fecha_original: d.fecha ?? '',\n  hora:        d.hora ?? '',\n  nombre:      d.nombre ?? 'cliente',\n  confirmar:   d.confirmar ?? '',\n  from_number: d.from_number ?? '',\n  accion:      d.accion ?? '',\n  profesional: d.profesional ?? '',\n  fecha_nueva:          fechaNuevaResuelta,\n  fecha_nueva_original: d.fecha_nueva ?? '',\n  hora_nueva:           d.hora_nueva ?? '',\n  servicio_nuevo:       d.servicio_nuevo ?? '',\n  fecha_hasta:          fechaHastaResuelta,\n  fecha_hasta_original: d.fecha_hasta ?? ''\n}}];"
+        "jsCode": "const d = $input.first().json;\n// ===== Resolver fecha de forma determinista (mismo motor que voz) =====\nfunction resolverFecha(input) {\n  if (!input) return '';\n let s = String(input).trim().toLowerCase();\n  const numLetra = {una:1,uno:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10};\n  for (const [pal, n] of Object.entries(numLetra)) {\n    s = s.replace(new RegExp('\\\\b' + pal + '\\\\b', 'g'), String(n));\n  }\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n  const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\n  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());\n  const fmt = (x) => {\n    const y = x.getFullYear();\n    const m = String(x.getMonth() + 1).padStart(2, '0');\n    const dd = String(x.getDate()).padStart(2, '0');\n    return `${y}-${m}-${dd}`;\n  };\n  let m = s.match(/\\b(\\d{1,2})[\\/\\-](\\d{1,2})(?:[\\/\\-](\\d{2,4}))?\\b/);\n  if (m) {\n    const dd = parseInt(m[1], 10);\n    const mm = parseInt(m[2], 10);\n    let yyyy = m[3] ? parseInt(m[3], 10) : hoy.getFullYear();\n    if (yyyy < 100) yyyy += 2000;\n    let cand = new Date(yyyy, mm - 1, dd);\n    if (!m[3] && cand < hoy) cand = new Date(yyyy + 1, mm - 1, dd);\n    if (!isNaN(cand)) return fmt(cand);\n  }\n  if (s.includes('hoy')) return fmt(hoy);\n  if (s.includes('pasado manana') || s.includes('pasado mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 2); return fmt(x);\n  }\n  if (s.includes('manana') || s.includes('mañana')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 1); return fmt(x);\n  }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*d[ií]as?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10)); return fmt(x); }\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*semanas?/);\n  if (m) { const x = new Date(hoy); x.setDate(x.getDate() + parseInt(m[1], 10) * 7); return fmt(x); }\n  if (s.includes('semana que viene') || s.includes('proxima semana') || s.includes('próxima semana') || s.includes('semana proxima') || s.includes('semana próxima')) {\n    const x = new Date(hoy); x.setDate(x.getDate() + 7); return fmt(x);\n  }\n  const dias = {'domingo':0,'lunes':1,'martes':2,'miercoles':3,'miércoles':3,'jueves':4,'viernes':5,'sabado':6,'sábado':6};\n  for (const [nombre, num] of Object.entries(dias)) {\n    if (s.includes(nombre)) {\n      const x = new Date(hoy);\n      let diff = (num - x.getDay() + 7) % 7;\n      if (diff === 0) diff = 7;\n      x.setDate(x.getDate() + diff);\n      return fmt(x);\n    }\n  }\n  // ===== NUEVO: numero de dia del mes suelto: \"12\", \"el 12\", \"el dia 20\", \"el 12 de este mes\" =====\n  m = s.match(/\\b(\\d{1,2})\\b/);\n  if (m) {\n    const dia = parseInt(m[1], 10);\n    if (dia >= 1 && dia <= 31) {\n      let cand = new Date(hoy.getFullYear(), hoy.getMonth(), dia);\n      if (cand < hoy) cand = new Date(hoy.getFullYear(), hoy.getMonth() + 1, dia);\n      if (!isNaN(cand) && cand.getDate() === dia) return fmt(cand);\n    }\n  }\n  return '';\n}\nconst fechaResuelta = resolverFecha(d.fecha);\nconst fechaNuevaResuelta = resolverFecha(d.fecha_nueva);\nconst fechaHastaResuelta = resolverFecha(d.fecha_hasta);\nreturn [{ json: {\n  fn:          d.fn ?? '',\n  negocio_id:  d.negocio_id ?? '11111111-1111-1111-1111-111111111111',\n  servicio:    d.servicio ?? '',\n  fecha:       fechaResuelta,\n  fecha_original: d.fecha ?? '',\n  hora:        d.hora ?? '',\n  nombre:      d.nombre ?? 'cliente',\n  confirmar:   d.confirmar ?? '',\n  accion:      d.accion ?? '',\n  profesional: d.profesional ?? '',\n  fecha_nueva:          fechaNuevaResuelta,\n  fecha_nueva_original: d.fecha_nueva ?? '',\n  hora_nueva:           d.hora_nueva ?? '',\n  servicio_nuevo:       d.servicio_nuevo ?? '',\n  fecha_hasta:          fechaHastaResuelta,\n  from_number: d.from_number ?? '',\n  fecha_hasta_original: d.fecha_hasta ?? ''\n}}];"
       },
       "id": "41d9db17-4b65-43a3-86bb-7fc4f7d31035",
       "name": "1. Resolver fecha",
@@ -216,6 +219,30 @@
               },
               "renameOutput": true,
               "outputKey": "mis_reservas"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "79ece4a6-12a9-4790-ac22-63a27d5128ea",
+                    "leftValue": "={{ $json.fn }}",
+                    "rightValue": "toggle_bot",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Toggle bot"
             }
           ]
         },
@@ -241,8 +268,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -192,
-        144
+        48,
+        32
       ],
       "credentials": {
         "postgres": {
@@ -260,8 +287,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        48,
-        144
+        288,
+        32
       ]
     },
     {
@@ -275,8 +302,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -192,
-        720
+        48,
+        608
       ],
       "credentials": {
         "postgres": {
@@ -296,8 +323,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -192,
-        336
+        48,
+        224
       ],
       "credentials": {
         "postgres": {
@@ -317,8 +344,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -192,
-        512
+        48,
+        400
       ],
       "credentials": {
         "postgres": {
@@ -356,8 +383,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        48,
-        384
+        288,
+        272
       ],
       "id": "9ca282bb-dc99-4d2f-a3cb-79b2fae86f6c",
       "name": "Aviso empresario ?"
@@ -386,8 +413,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        336,
-        240
+        576,
+        128
       ],
       "id": "5e8f9cfa-8d3d-4b99-afa3-6dc390044a1b",
       "retryOnFail": true,
@@ -416,8 +443,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        528,
-        368
+        768,
+        256
       ],
       "id": "c4ce382d-049c-46d2-bf77-ac5afb55d284",
       "name": "N3 Salida"
@@ -431,8 +458,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -176,
-        928
+        64,
+        816
       ],
       "id": "9cf71170-a70f-426f-9eec-b8cc2d93e47f",
       "name": "3e.Actualizar",
@@ -452,8 +479,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -176,
-        1104
+        64,
+        992
       ],
       "id": "db19eaf6-c4bb-4bce-9616-989253748458",
       "name": "3f.MisReservas",
@@ -463,23 +490,29 @@
           "name": "DB DEV"
         }
       }
-    }
-  ],
-  "pinData": {
-    "Trigger (desde agente)": [
-      {
-        "json": {
-          "fn": "consultar",
-          "negocio_id": "40000000-0000-0000-0000-000000000004",
-          "servicio": "botox",
-          "fecha": "mañana",
-          "profesional": "Marc",
-          "from_number": "34600000401",
-          "nombre": "Prueba"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH es_dueno AS (\n  SELECT (dueno_telefono = '{{ $json.from_number }}') AS si\n  FROM negocios WHERE id = '{{ $json.negocio_id }}'\n),\nupd AS (\n  UPDATE negocios\n  SET agente_activo = CASE\n        WHEN '{{ $json.accion }}' = 'activar'    THEN true\n        WHEN '{{ $json.accion }}' = 'desactivar' THEN false\n        ELSE agente_activo END\n  WHERE id = '{{ $json.negocio_id }}'\n    AND (SELECT si FROM es_dueno) = true\n    AND '{{ $json.accion }}' IN ('activar','desactivar')\n  RETURNING agente_activo\n)\nSELECT\n  CASE\n    WHEN (SELECT si FROM es_dueno) IS NOT TRUE THEN\n      'NO_AUTORIZADO: solo el responsable puede activar o apagar el asistente.'\n    WHEN EXISTS (SELECT 1 FROM upd) THEN\n      CASE WHEN (SELECT agente_activo FROM upd)\n           THEN 'ACTIVADO: vuelvo a responder a tus clientes.'\n           ELSE 'APAGADO: no responderé a tus clientes hasta que lo reactives.' END\n    ELSE\n      CASE WHEN (SELECT agente_activo FROM negocios WHERE id = '{{ $json.negocio_id }}')\n           THEN 'ESTADO: el asistente está ACTIVADO.'\n           ELSE 'ESTADO: el asistente está APAGADO.' END\n  END AS response;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        64,
+        1184
+      ],
+      "id": "95c3fdfb-f203-4b9e-993b-0b2e48a2fc10",
+      "name": "3g. Toggle bot",
+      "credentials": {
+        "postgres": {
+          "id": "UZezTWtSmrQ7w46T",
+          "name": "DB DEV"
         }
       }
-    ]
-  },
+    }
+  ],
   "connections": {
     "Trigger (desde agente)": {
       "main": [
@@ -543,6 +576,13 @@
         [
           {
             "node": "3f.MisReservas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "3g. Toggle bot",
             "type": "main",
             "index": 0
           }
@@ -629,7 +669,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "16a67607-1336-49a5-9492-395b6932043d",
+  "versionId": "c51c1f5a-a718-483d-a802-a8bb0bf9d6bf",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "0c633d92281d3e60391559b2314488b80dd3e4438762e47aaa5a33925c00f2e0"
