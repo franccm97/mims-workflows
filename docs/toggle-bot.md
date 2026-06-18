@@ -130,14 +130,77 @@ asistente para clientes, llama a toggle_bot con accion 'desactivar'; para encend
 
 ---
 
-## Preguntas para Franc
+## BLOQUE 3 — Cierre: cortesía + handoff (decisión CONFIRMADA de Franc)
 
-1. **¿Integrar en el Motor (fn=toggle_bot + `accion` en el Trigger) o sub-workflow
-   aparte?** Recomiendo en el Motor (un solo sitio, fn-based, consistente). Tasqueta
-   tenía un `EMP estado_agente` apuntando a un `TOOL_AGENTE_ONOFF` sin cablear — esto lo
-   reemplaza.
-2. **Bot apagado + cliente escribe: ¿silencio total o handoff a Chatwoot?** Tasqueta
-   tenía "Pasar a Chatwoot (bot off)" (toggle_status → open). Recomiendo handoff (que un
-   humano lo vea), pero tú decides.
-3. **Confirmar `agente_activo` default true en prod** (para que nada cambie hasta que
-   alguien lo apague a propósito).
+Cuando el empresario apaga el bot (`agente_activo = false`) y escribe un **cliente**,
+pasan DOS cosas a la vez (**nunca silencio**):
+1. El cliente recibe un **mensaje de cortesía** (`negocios.mensaje_bot_apagado`, o un
+   genérico si está vacío).
+2. La conversación pasa a **handoff en Chatwoot** (`toggle_status` → `open`) para que la
+   coja un humano.
+
+El **empresario** sigue operando con normalidad (puede reactivar con "activar bot"),
+porque siempre pasa el `4.5 ¿Bot activo?`. **Integrado en el flujo** (no sub-workflow).
+
+### Datos
+- Migración **`006_mensaje_bot_apagado.sql`**: `ALTER TABLE negocios ADD COLUMN IF NOT
+  EXISTS mensaje_bot_apagado text` (idempotente; NULL → genérico).
+- El SELECT de `4. Cargar negocio + rol` ya devuelve `mensaje_apagado` con el COALESCE
+  genérico (ver `db/toggle-bot.sql` sección A).
+
+### Rama FALSE del `4.5 ¿Bot activo?` (cliente + bot apagado): 2 nodos en serie
+
+**1) `Cortesia bot off`** — envía el mensaje de cortesía al cliente:
+```json
+{
+  "parameters": {
+    "method": "POST",
+    "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/messages",
+    "sendHeaders": true,
+    "headerParameters": { "parameters": [
+      { "name": "Content-Type", "value": "application/json" },
+      { "name": "api_access_token", "value": "={{ $env.CHATWOOT_API_TOKEN }}" }
+    ]},
+    "sendBody": true, "specifyBody": "json",
+    "jsonBody": "={\n  \"content\": {{ JSON.stringify($('4. Cargar negocio + rol').first().json.mensaje_apagado) }},\n  \"message_type\": \"outgoing\"\n}",
+    "options": {}
+  },
+  "name": "Cortesia bot off",
+  "type": "n8n-nodes-base.httpRequest",
+  "typeVersion": 4.4
+}
+```
+
+**2) `Handoff (bot off)`** — pasa la conversación a un humano (toggle_status → open):
+```json
+{
+  "parameters": {
+    "method": "POST",
+    "url": "=https://inbox.mims.studio/api/v1/accounts/{{ $('2. Parsear Meta').first().json.account_id }}/conversations/{{ $('2. Parsear Meta').first().json.conversation_id }}/toggle_status",
+    "sendHeaders": true,
+    "headerParameters": { "parameters": [
+      { "name": "Content-Type", "value": "application/json" },
+      { "name": "api_access_token", "value": "={{ $env.CHATWOOT_API_TOKEN }}" }
+    ]},
+    "sendBody": true, "specifyBody": "json",
+    "jsonBody": "{ \"status\": \"open\" }",
+    "options": {}
+  },
+  "name": "Handoff (bot off)",
+  "type": "n8n-nodes-base.httpRequest",
+  "typeVersion": 4.4
+}
+```
+Conexión: `4.5 ¿Bot activo?` (salida FALSE) → `Cortesia bot off` → `Handoff (bot off)`.
+(Tasqueta ya tenía un "Pasar a Chatwoot (bot off)" = el nodo 2; solo se añade el 1 antes.)
+El token va como `={{ $env.CHATWOOT_API_TOKEN }}` (lo resuelve n8n; ver `docs/deploy-2b.md`).
+
+---
+
+## Decisiones de Franc (confirmadas)
+- ✅ Integrar en el **flujo** (no sub-workflow).  ✅ Bot apagado = **cortesía + handoff**.
+- ✅ `agente_activo` **default true**.  ✅ Toggle vía Motor `fn=toggle_bot` + `accion`.
+
+## Pregunta abierta
+- El texto genérico de cortesía está en el SQL (`db/toggle-bot.sql` A). ¿Lo quieres
+  distinto, o por idioma? (hoy es uno en español).

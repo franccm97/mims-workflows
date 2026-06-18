@@ -18,7 +18,11 @@ SELECT
        THEN 'empresario' ELSE 'cliente' END AS rol,
   horario,
   zona_horaria,
-  agente_activo,          -- <-- NUEVO: lo lee "4.5 ¿Bot activo?"
+  agente_activo,          -- <-- lo lee "4.5 ¿Bot activo?"
+  -- Texto de cortesía para cliente cuando el bot está apagado (NULL -> genérico).
+  COALESCE(NULLIF(mensaje_bot_apagado,''),
+    'Ahora mismo no podemos atenderte por aquí automáticamente. Te leemos y te respondemos en cuanto podamos. ¡Gracias!')
+    AS mensaje_apagado,   -- <-- NUEVO (BLOQUE 3, columna de la migración 006)
   dueno_telefono
 FROM negocios
 WHERE chatwoot_account_id = '{{ $('2. Parsear Meta').first().json.account_id }}'
@@ -27,7 +31,8 @@ LIMIT 1;
 -- Y el nodo IF "4.5 ¿Bot activo?" usa esta condición (booleana, true = sigue):
 --   {{ $json.rol === 'empresario' || $json.agente_activo === true }}
 -- TRUE  -> sigue al "5. Switch rol" (empresario SIEMPRE pasa; cliente solo si on).
--- FALSE -> rama de "bot apagado": NO responder al cliente (o handoff a Chatwoot).
+-- FALSE (cliente + bot apagado) -> rama de "bot apagado": (1) enviar mensaje_apagado
+--   al cliente por Chatwoot Y (2) handoff (toggle_status -> open). Ver docs/toggle-bot.md.
 
 -- ============================================================================
 -- (B) TOGGLE — nodo Motor nuevo "3g. Estado agente" (fn = toggle_bot)
