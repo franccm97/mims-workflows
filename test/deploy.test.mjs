@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDeployPayload } from "../scripts/deploy.mjs";
+import { buildDeployPayload, deployGuard, PROD_WORKFLOW_IDS } from "../scripts/deploy.mjs";
 
 // Workflow de ejemplo con campos read-only que la API pública NO acepta.
 const wf = () => ({
@@ -48,4 +48,27 @@ test("deploy: si no hay settings, pone uno por defecto", () => {
   delete w.settings;
   const { payload } = buildDeployPayload(w);
   assert.deepEqual(payload.settings, { executionOrder: "v1" });
+});
+
+// ===== Red de seguridad: guard anti-producción (TAREA 5) =====
+
+test("guard deploy: BLOQUEA el id de PROD sin --allow-prod", () => {
+  const g = deployGuard("nzjWscGj9DoXKIzG");
+  assert.equal(g.allowed, false, "el Motor PROD debe quedar bloqueado por defecto");
+  assert.match(g.reason, /PRODUCC/i);
+});
+
+test("guard deploy: PERMITE el id de PROD solo con --allow-prod explícito", () => {
+  const g = deployGuard("nzjWscGj9DoXKIzG", { allowProd: true });
+  assert.equal(g.allowed, true);
+});
+
+test("guard deploy: PERMITE el Motor DEV (6Ugau) siempre", () => {
+  assert.equal(deployGuard("6UgauiTycOIrC7ES").allowed, true);
+  assert.equal(deployGuard("6UgauiTycOIrC7ES", { allowProd: false }).allowed, true);
+});
+
+test("guard deploy: el id de PROD está en la lista negra", () => {
+  assert.ok(PROD_WORKFLOW_IDS.has("nzjWscGj9DoXKIzG"));
+  assert.ok(!PROD_WORKFLOW_IDS.has("6UgauiTycOIrC7ES"));
 });

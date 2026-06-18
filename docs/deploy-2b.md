@@ -87,6 +87,11 @@ del JSON. Empieza SIEMPRE por el dry-run.
   id. Deben existir YA en la instancia destino; el deploy no las crea ni toca.
 - **HTTP 400 por settings.** Algunas claves (`availableInMCP`, `timeSavedMode`)
   pueden no estar en el schema de tu versión de n8n → usa `--minimal-settings`.
+- **Guard anti-producción.** Empujar al Motor PROD (`nzjWscGj9DoXKIzG`) está
+  BLOQUEADO salvo `--allow-prod` (que no deberías necesitar desde aquí). Antes de
+  cada PUT real se imprime `→ actualizar <id> (<nombre>) en <base>` para que veas el
+  destino. OJO: el deploy lee el id del `motor.json` de **la rama en la que estés** —
+  asegúrate de estar en la rama del Motor DEV antes de `--live`.
 - **Rollback.** Es git: `git checkout <commit-anterior> -- workflows/` y re-deploy.
 
 ---

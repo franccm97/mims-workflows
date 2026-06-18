@@ -7,6 +7,10 @@
 //   node scripts/deploy.mjs --only motor    # filtra por nombre de archivo/carpeta
 //   node scripts/deploy.mjs --minimal-settings  # manda settings mínimos (si n8n 400ea)
 //
+// SEGURIDAD: empujar al Motor PROD (id nzjWscGj9DoXKIzG) está BLOQUEADO salvo que
+// pases --allow-prod (no deberías necesitarlo nunca desde aquí). Antes de cada PUT
+// real se imprime "→ actualizar <id> (<nombre>) en <base>" para que veas el destino.
+//
 // Config por entorno (NO en el repo; ver .env.example):
 //   N8N_BASE_URL   p.ej. https://n8n.mims.studio   (sin barra final)
 //   N8N_API_KEY    API key de n8n (Settings -> n8n API). Va en header X-N8N-API-KEY.
@@ -29,6 +33,25 @@ import { fileURLToPath } from "node:url";
 
 // Campos que la API pública acepta en el body de un workflow.
 const ALLOWED = ["name", "nodes", "connections", "settings", "staticData"];
+
+// ── Red de seguridad: IDs de PRODUCCIÓN que jamás se tocan por error. ──
+// El nombre del workflow NO distingue prod de dev (ambos "TOOLS MOTOR DE RESERVAS");
+// el ID sí. Por eso el guard es por ID. Escribir sobre uno de estos exige el flag
+// explícito --allow-prod (que nunca deberías necesitar desde este repo).
+export const PROD_WORKFLOW_IDS = new Set([
+  "nzjWscGj9DoXKIzG", // Motor PROD
+]);
+
+/** ¿Se permite desplegar a este id? Puro (testeable). */
+export function deployGuard(id, { allowProd = false } = {}) {
+  if (PROD_WORKFLOW_IDS.has(id) && !allowProd) {
+    return {
+      allowed: false,
+      reason: `id de PRODUCCIÓN ${id} — BLOQUEADO. Si es a propósito (no debería), usa --allow-prod.`,
+    };
+  }
+  return { allowed: true, reason: "" };
+}
 
 /**
  * Construye el payload que acepta la REST API a partir del JSON exportado.
@@ -94,11 +117,12 @@ async function apiActivate(base, key, id) {
 }
 
 function parseArgs(argv) {
-  const a = { live: false, activate: false, minimalSettings: false, only: null, files: [] };
+  const a = { live: false, activate: false, minimalSettings: false, allowProd: false, only: null, files: [] };
   for (const x of argv) {
     if (x === "--live") a.live = true;
     else if (x === "--activate") a.activate = true;
     else if (x === "--minimal-settings") a.minimalSettings = true;
+    else if (x === "--allow-prod") a.allowProd = true;
     else if (x.startsWith("--only")) a.only = x.includes("=") ? x.split("=")[1] : "__next__";
     else if (a.only === "__next__") a.only = x;
     else if (!x.startsWith("--")) a.files.push(x);
@@ -146,10 +170,25 @@ async function main(argv) {
       fail++;
       continue;
     }
+
+    const guard = deployGuard(id, { allowProd: args.allowProd });
+
     if (!args.live) {
-      console.log(`  • [dry] PUT /api/v1/workflows/${id}  <-  ${etiqueta}`);
+      if (!guard.allowed) {
+        console.log(`  ⛔ [dry] BLOQUEADO: ${etiqueta} -> ${guard.reason}`);
+      } else {
+        console.log(`  • [dry] PUT ${base || "<N8N_BASE_URL>"}/api/v1/workflows/${id}  (${payload.name})  <-  ${etiqueta}`);
+      }
       continue;
     }
+
+    // --live: el guard BLOQUEA prod salvo --allow-prod. No se hace el PUT.
+    if (!guard.allowed) {
+      console.error(`  ⛔ BLOQUEADO: ${etiqueta} -> ${guard.reason}`);
+      fail++;
+      continue;
+    }
+    console.log(`  → actualizar ${id} (${payload.name}) en ${base}`);
 
     const r = await apiPut(base, key, id, payload);
     if (r.ok) {
