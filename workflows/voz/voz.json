@@ -1,0 +1,314 @@
+{
+  "name": "AGENTE-LLAMADA-RESERVAS-DEV",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "af27b002-903d-4450-8e79-3b71a9c8dc12",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "bc08c580-2bbe-4b36-ab21-bbe137489f19",
+      "name": "1. Webhook Retell",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        96
+      ],
+      "webhookId": "af27b002-903d-4450-8e79-3b71a9c8dc12"
+    },
+    {
+      "parameters": {
+        "jsCode": "const root = $input.first().json;\nconst body = root.body ?? root;\nconst q    = root.query ?? {};\nconst args = body.args ?? {};\nconst call = body.call ?? {};\nconst rawFn = q.fn ?? body.name ?? '';\nconst fnMap = {\n  'consultar_disponibilidad': 'consultar', 'crear_reserva': 'crear', 'cancelar_reserva': 'cancelar',\n  'modificar_reserva': 'actualizar',\n  'consultar': 'consultar', 'crear': 'crear', 'cancelar': 'cancelar',\n  'modificar': 'actualizar', 'actualizar': 'actualizar'\n};\nconst fn = fnMap[rawFn] ?? rawFn;\n\n// ===== Detectar negocio por agent_id =====\nconst AGENTES = {\n  'agent_5efa5c468a96d7b2c19c715460': '11111111-1111-1111-1111-111111111111', // Centre Mèdic\n  'agent_4cfc376e82b5663f5b31bb3e37': '22222222-2222-2222-2222-222222222222', // Dentos\n  'agent_cbd6d8af78bb572c980d8212b1': 'b4ac5f7a-e99a-4db8-8336-aef5ea4bfbf5', // Peluqueria Canina\n  'agent_0eea59494eee116412bb4ee589': '8d0ce837-82a2-4d0f-bf55-95d581d7d680'  // La Tasqueta (Llívia)\n};\nconst negocio_id = AGENTES[call.agent_id] ?? '11111111-1111-1111-1111-111111111111';\n\nfunction resolverFecha(input) {\n  if (!input) return '';\n  let s = String(input).trim().toLowerCase();\n\n  // números en letra -> cifra (\"dentro de dos semanas\", \"tres dias\"...)\n  const numLetra = {una:1,uno:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10};\n  for (const [pal,n] of Object.entries(numLetra)) {\n    s = s.replace(new RegExp('\\\\b'+pal+'\\\\b','g'), String(n));\n  }\n\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;\n\n  const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));\n  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());\n  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;\n\n  // \"pasado mañana\" ANTES que \"mañana\"\n  if (s.includes('pasado manana') || s.includes('pasado mañana') || s.includes('dema passat') || s.includes('demà passat') ||\n      s.includes('day after tomorrow') || s.includes('apres-demain') || s.includes('après-demain')) {\n    const d=new Date(hoy); d.setDate(d.getDate()+2); return fmt(d);\n  }\n  if (s.includes('hoy') || s.includes('today') || s.includes('avui') || s.includes('aujourd')) return fmt(hoy);\n  if (s.includes('manana') || s.includes('mañana') || s.includes('tomorrow') || s.includes('dema') || s.includes('demà') || s.includes('demain')) {\n    const d=new Date(hoy); d.setDate(d.getDate()+1); return fmt(d);\n  }\n\n  // \"en / dentro de X dias\"\n  let m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*d[ií]as?/);\n  if (m) { const d=new Date(hoy); d.setDate(d.getDate()+parseInt(m[1],10)); return fmt(d); }\n  // \"en / dentro de X semanas\"\n  m = s.match(/(?:en|dentro de)\\s+(\\d+)\\s*semanas?/);\n  if (m) { const d=new Date(hoy); d.setDate(d.getDate()+parseInt(m[1],10)*7); return fmt(d); }\n\n  const dias = {\n    'domingo':0,'lunes':1,'martes':2,'miercoles':3,'miércoles':3,'jueves':4,'viernes':5,'sabado':6,'sábado':6,\n    'sunday':0,'monday':1,'tuesday':2,'wednesday':3,'thursday':4,'friday':5,'saturday':6,\n    'diumenge':0,'dilluns':1,'dimarts':2,'dimecres':3,'dijous':4,'divendres':5,'dissabte':6,\n    'dimanche':0,'lundi':1,'mardi':2,'mercredi':3,'jeudi':4,'vendredi':5,'samedi':6\n  };\n  for (const [n,num] of Object.entries(dias)) {\n    if (s.includes(n)) { const d=new Date(hoy); let diff=(num-d.getDay()+7)%7; if(diff===0)diff=7; d.setDate(d.getDate()+diff); return fmt(d); }\n  }\n\n  // día del mes suelto: \"el 23\", \"23\"\n  m = s.match(/\\b(\\d{1,2})\\b/);\n  if (m) {\n    const dia = parseInt(m[1],10);\n    if (dia>=1 && dia<=31) {\n      let cand = new Date(hoy.getFullYear(), hoy.getMonth(), dia);\n      if (cand < hoy) cand = new Date(hoy.getFullYear(), hoy.getMonth()+1, dia);\n      if (!isNaN(cand) && cand.getDate()===dia) return fmt(cand);\n    }\n  }\n  return '';\n}\n\nreturn [{ json: {\n  fn,\n  negocio_id,\n  servicio: args.servicio ?? '',\n  fecha: resolverFecha(args.fecha),\n  fecha_original: args.fecha ?? '',\n  hora: args.hora ?? '',\n  nombre: args.nombre ?? 'cliente',\n  confirmar: args.confirmar ?? '',\n  from_number: call.from_number ?? '34000000000',\n  fecha_nueva: resolverFecha(args.fecha_nueva),\n  hora_nueva: args.hora_nueva ?? '',\n  servicio_nuevo: args.servicio_nuevo ?? '',\n  fecha_hasta: '',\n  profesional: '',\n  accion: ''\n}}];"
+      },
+      "id": "082f7ad7-6f05-4975-a5ea-6f88b1974a80",
+      "name": "2. Parsear funcion Retell",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response: $json.response ?? $json.mensaje }) }}",
+        "options": {}
+      },
+      "id": "9c12a41f-412f-42ad-9609-6acdf8bdcc0f",
+      "name": "5. Responder a Retell",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        624,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "6UgauiTycOIrC7ES",
+          "mode": "list",
+          "cachedResultName": "TOOLS MOTOR DE RESERVAS DEV"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fn": "={{ $json.fn }}",
+            "negocio_id": "={{ $json.negocio_id }}",
+            "servicio": "={{ $json.servicio }}",
+            "fecha": "={{ $json.fecha }}",
+            "hora": "={{ $json.hora }}",
+            "nombre": "={{ $json.nombre }}",
+            "confirmar": "={{ $json.confirmar }}",
+            "from_number": "={{ $json.from_number }}",
+            "fecha_nueva": "={{ $json.fecha_nueva }}",
+            "hora_nueva": "={{ $json.hora_nueva }}",
+            "servicio_nuevo": "={{ $json.servicio_nuevo }}",
+            "fecha_hasta": "={{ $json.fecha_hasta }}",
+            "profesional": "={{ $json.profesional }}",
+            "accion": "={{ $json.accion }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fn",
+              "displayName": "fn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "negocio_id",
+              "displayName": "negocio_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio",
+              "displayName": "servicio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora",
+              "displayName": "hora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "confirmar",
+              "displayName": "confirmar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "from_number",
+              "displayName": "from_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_nueva",
+              "displayName": "fecha_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "hora_nueva",
+              "displayName": "hora_nueva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "servicio_nuevo",
+              "displayName": "servicio_nuevo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "fecha_hasta",
+              "displayName": "fecha_hasta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "profesional",
+              "displayName": "profesional",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "accion",
+              "displayName": "accion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "motorexec-0000-0000-0000-000000000001",
+      "name": "Motor (Execute Workflow)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -100,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Limpia el `response` del Motor (pensado para chat/LLM) para leerlo por voz (TTS).\nlet t = String($json.response ?? '');\n// 1) prefijo tecnico al inicio (OCUPADO:, CONFIRMAR:, NO_ENCONTRADA:, FALTA_NOMBRE:, etc.)\nt = t.replace(/^[A-Z_]{3,}:s*/, '');\n// 2) markdown de negrita / asteriscos\nt = t.replace(/*+/g, '');\n// 3) emojis y simbolos\nt = t.replace(/[🀀-🫿☀-➿←-⇿⬀-⯿️]/gu, '');\n// 4) 'la h' pegada a la hora: 09:00h -> 09:00\nt = t.replace(/(d{1,2}:d{2})s*h\b/g, '$1');\n// 5) espacios sobrantes\nt = t.replace(/[ \t]{2,}/g, ' ').replace(/s*\ns*/g, '. ').trim();\nreturn [{ json: { response: t } }];"
+      },
+      "id": "limpieza-tts-0000-0000-000000000001",
+      "name": "Limpieza TTS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        96
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "1. Webhook Retell": {
+      "main": [
+        [
+          {
+            "node": "2. Parsear funcion Retell",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Parsear funcion Retell": {
+      "main": [
+        [
+          {
+            "node": "Motor (Execute Workflow)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Motor (Execute Workflow)": {
+      "main": [
+        [
+          {
+            "node": "Limpieza TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpieza TTS": {
+      "main": [
+        [
+          {
+            "node": "5. Responder a Retell",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "cdce5ebc-ed79-4064-a08c-8e7a499237d6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0c633d92281d3e60391559b2314488b80dd3e4438762e47aaa5a33925c00f2e0"
+  },
+  "id": "tUL0VRQKeGBA2Acj",
+  "tags": [
+    {
+      "updatedAt": "2026-05-28T10:42:44.810Z",
+      "createdAt": "2026-05-28T10:42:44.810Z",
+      "id": "Szz3cj6npBFMdls0",
+      "name": "DEV"
+    }
+  ]
+}
